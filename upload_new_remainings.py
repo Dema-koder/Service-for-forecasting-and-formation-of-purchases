@@ -1,18 +1,20 @@
-import os
 import pandas as pd
 from pymongo import MongoClient
+from openpyxl import Workbook
+from confluent_kafka import Consumer, KafkaError
 import math
 import re
+import json
+from io import BytesIO
+from io import StringIO
 
 client = MongoClient('localhost', 27017)
 db = client['stock_remainings']
 collection = db['Складские остатки']
 
-def add_into_db_21(filepath):
-    str_document = filepath
-    df = pd.read_excel(str_document)
-    columns = ["Название", "Остаток", "подгруппа", "дата", "сч"]
-    date = str_document.split('\\')[-1][22:32]
+
+def add_into_db_21(df, filename):
+    date = filename.split('\\')[-1][22:32]
     subgroup = 0
     for index, row in df.iterrows():
         row.iloc[0], row.iloc[2], row.iloc[20] = str(row.iloc[0]), str(row.iloc[2]), str(row.iloc[20])
@@ -24,9 +26,8 @@ def add_into_db_21(filepath):
                 {'Название': row.iloc[2], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 21})
 
 
-def add_into_db_105(filepath):
-    df = pd.read_excel(filepath)
-    date = filepath.split('\\')[-1][22:32]
+def add_into_db_105(df, filename):
+    date = filename.split('\\')[-1][22:32]
     # Convert DataFrame rows to dictionaries and insert into MongoDB
 
     is_new_subgroup = False
@@ -57,11 +58,8 @@ def add_into_db_105(filepath):
                 seen_one = False
 
 
-def add_into_db_101(filepath):
-    str_document = filepath
-    df = pd.read_excel(str_document)
-    columns = ["Название", "Остаток", "подгруппа", "дата", "сч"]
-    date = str_document.split('\\')[-1][22:32]
+def add_into_db_101(df, filename):
+    date = filename.split('\\')[-1][22:32]
     subgroup = 0
     for index, row in df.iterrows():
         row.iloc[0], row.iloc[2], row.iloc[20] = str(row.iloc[0]), str(row.iloc[2]), str(row.iloc[20])
@@ -73,18 +71,52 @@ def add_into_db_101(filepath):
                 {'Название': row.iloc[2], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 101})
 
 
-def migrate_to_db(directory):
-    # Iterate over files in the directory
-    for filename in os.listdir(directory):
-        # Check file name types and perform actions accordingly
-        if filename.endswith("(сч. 21).xlsx"):
-            add_into_db_21(os.path.join(directory, filename))
-        elif filename.endswith("(сч. 105).xlsx"):
-            add_into_db_105(os.path.join(directory, filename))
-        elif filename.endswith("(сч. 101).xlsx"):
-            add_into_db_101(os.path.join(directory, filename))
+def process_file(file_content, filename):
+    data = BytesIO(file_content)
+    df = pd.read_excel(data)
+    if filename.endswith("(сч. 21).xlsx"):
+        add_into_db_21(df, filename)
+    elif filename.endswith("(сч. 105).xlsx"):
+        add_into_db_105(df, filename)
+    elif filename.endswith("(сч. 101).xlsx"):
+        add_into_db_101(df, filename)
 
 
-if __name__ == '__main__':
-    directory = "dataset/Складские остатки"
-    migrate_to_db(directory)
+def kafka_consumer():
+    consumer = Consumer({
+        'bootstrap.servers': 'localhost:9092',
+        'group.id': 'my_group',
+        'auto.offset.reset': 'earliest'
+    })
+
+    consumer.subscribe(['file_upload_topic'])
+
+    while True:
+        msg = consumer.poll(1.0)
+
+        if msg is None:
+            continue
+
+        if msg.error():
+            if msg.error().code() == KafkaError._PARTITION_EOF:
+                continue
+            else:
+                print(msg.error())
+                break
+
+        filename = msg.key().decode('utf-8')
+        file_content = msg.value()
+
+        if file_content is None:
+            print("Message value is None")
+            continue
+
+        print(filename)
+
+        process_file(file_content, filename)
+
+    consumer.close()
+
+
+if __name__ == "__main__":
+    kafka_consumer()

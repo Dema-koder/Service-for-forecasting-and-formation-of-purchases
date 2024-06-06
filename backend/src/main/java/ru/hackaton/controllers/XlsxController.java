@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -22,24 +23,19 @@ import java.util.Map;
 public class XlsxController {
 
     @Autowired
-    private KafkaTemplate<String, String> kafkaTemplate;
+    private KafkaTemplate<String, byte[]> kafkaTemplate;
 
     @PostMapping("/upload")
     @Operation(summary = "Upload an XLSX file", description = "Upload an XLSX file and save it with the original filename",
             requestBody = @RequestBody(content = @Content(mediaType = "multipart/form-data",
                     schema = @Schema(implementation = UploadXlsxRequest.class))))
     public String uploadXlsx(@RequestParam("file") MultipartFile file) {
-        String filename = file.getOriginalFilename();
-        log.info("Received file with original filename: {}", filename);
-        log.info("Target filename: {}", filename);
-
         try {
             byte[] bytes = file.getBytes();
             log.info("File size: {} bytes", bytes.length);
-            Map<String, Object> message = new HashMap<>();
-            message.put("filename", filename);
-            message.put("file", bytes);
-            kafkaTemplate.send("file_upload_topic", new ObjectMapper().writeValueAsString(message));
+            log.info("Отправляем в кафку");
+            kafkaTemplate.send("file_upload_topic", file.getOriginalFilename(), bytes);
+            log.info("File uploaded and processed successfully.");
             return "File uploaded and processed successfully.";
         } catch (Exception e) {
             log.error("An unexpected error occurred: {}", e.getMessage());
