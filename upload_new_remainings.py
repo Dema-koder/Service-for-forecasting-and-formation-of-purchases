@@ -83,6 +83,7 @@ def process_file(file_content, filename):
 
 
 def kafka_consumer():
+    print("check")
     consumer = Consumer({
         'bootstrap.servers': 'localhost:9092',
         'group.id': 'my_group',
@@ -95,11 +96,11 @@ def kafka_consumer():
         msg = consumer.poll(1.0)
 
         if msg is None:
-            continue
+            break
 
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
-                continue
+                break
             else:
                 print(msg.error())
                 break
@@ -109,14 +110,16 @@ def kafka_consumer():
 
         if file_content is None:
             print("Message value is None")
-            continue
+            break
 
         print(filename)
 
         process_file(file_content, filename)
+        break
 
     consumer.close()
 
 
 if __name__ == "__main__":
+    print("ura")
     kafka_consumer()
