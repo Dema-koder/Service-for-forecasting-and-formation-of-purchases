@@ -6,7 +6,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -57,7 +56,7 @@ public class FZ44Parser {
                 log.error("Дата не найдена в тексте.");
             }
 
-            String result = localDate.toString() + "\n" + changes.toString();
+            String result = localDate.toString() + "\n" + changes;
             log.info(result);
             return result;
         } catch (IOException e) {
