@@ -1,12 +1,9 @@
 import pandas as pd
 from pymongo import MongoClient
-from openpyxl import Workbook
 from confluent_kafka import Consumer, KafkaError
 import math
 import re
-import json
 from io import BytesIO
-from io import StringIO
 
 client = MongoClient('localhost', 27017)
 db = client['stock_remainings']
@@ -96,21 +93,21 @@ def kafka_consumer():
         msg = consumer.poll(1.0)
 
         if msg is None:
-            break
+            continue
 
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
-                break
+                continue
             else:
                 print(msg.error())
-                break
+                continue
 
         filename = msg.key().decode('utf-8')
         file_content = msg.value()
 
         if file_content is None:
             print("Message value is None")
-            break
+            continue
 
         print(filename)
 
@@ -121,5 +118,4 @@ def kafka_consumer():
 
 
 if __name__ == "__main__":
-    print("ura")
     kafka_consumer()
