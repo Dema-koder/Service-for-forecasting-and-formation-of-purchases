@@ -43,7 +43,7 @@ def authenticate():
         tokens[user_id] = access_token
         del sessions.inverse[current_state]
         return render_template('success_page.html')
-    return render_template('auth_page.html')
+    return render_template('fail_page.html')
 
 
 @app.route('/token/<int:user_id>',  methods=['GET'])
