@@ -17,7 +17,7 @@ import java.net.URL;
 
 @Slf4j
 @RestController
-@RequestMapping("/xlsx")
+@RequestMapping("/xls")
 @Tag(name = "XLSX Management System", description = "Operations pertaining to XLSX file handling")
 public class XlsxController {
 
