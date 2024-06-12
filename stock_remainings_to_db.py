@@ -21,7 +21,7 @@ def add_into_db_21(filepath):
             subgroup = re.findall(pattern, row.iloc[0])
         if row.iloc[2] != 'nan' and row.iloc[20] != 'nan':
             collection.insert_one(
-                {'Название': row.iloc[2], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 21})
+                {'Название': row.iloc[2][:row.iloc[2].rfind(',')], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 21})
 
 
 def add_into_db_105(filepath):
@@ -50,7 +50,7 @@ def add_into_db_105(filepath):
             if is_new_subgroup and seen_one:
                 data = row.to_dict()  # Convert row to dictionary
                 collection.insert_one(
-                    {'Название': data['МОЛ'], 'Остаток': data['Количество'], 'Подгруппа': subgroup_id, 'Дата': date,
+                    {'Название': data['МОЛ'][:data['МОЛ'].rfind(',')], 'Остаток': data['Количество'], 'Подгруппа': subgroup_id, 'Дата': date,
                      'сч': 105})  # Insert document into collection
             else:
                 is_new_subgroup = False
@@ -70,7 +70,7 @@ def add_into_db_101(filepath):
             subgroup = re.findall(pattern, row.iloc[0])
         if row.iloc[2] != 'nan' and row.iloc[20] != 'nan':
             collection.insert_one(
-                {'Название': row.iloc[2], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 101})
+                {'Название': row.iloc[2][:row.iloc[2].rfind(',')], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 101})
 
 
 def migrate_to_db(directory):
