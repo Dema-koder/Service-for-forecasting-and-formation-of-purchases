@@ -127,7 +127,6 @@ def make_forecast(name, months):
     if pd.notna(df['Kredit']).sum() == 0 or df['Kredit'].max() == 0:
         return f"Извините, кажется, {name} не тратился в течение всего времени"
     df.set_index('дата', inplace=True)
-    print(df)
     model = auto_arima(df, seasonal=True, stepwise=True, trace=False, m=4, D=0)
     forecast = model.predict(n_periods=math.ceil(months / 3))
 
