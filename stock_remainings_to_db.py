@@ -76,25 +76,13 @@ def add_into_db_101(filepath):
 def migrate_to_db(directory):
     # Iterate over files in the directory
     for filename in os.listdir(directory):
-        filepath = os.path.join(directory, filename)
-
         # Check file name types and perform actions accordingly
         if filename.endswith("(сч. 21).xlsx"):
             add_into_db_21(os.path.join(directory, filename))
-            new_filename = filename.split('.xlsx')[0] + '_сохраненный.xlsx'
-            new_filepath = os.path.join(directory, new_filename)
-            # os.rename(filepath, new_filepath)
         elif filename.endswith("(сч. 105).xlsx"):
             add_into_db_105(os.path.join(directory, filename))
-            # Your action code here
-            new_filename = filename.split('.xlsx')[0] + '_сохраненный.xlsx'
-            new_filepath = os.path.join(directory, new_filename)
-            # os.rename(filepath, new_filepath)
         elif filename.endswith("(сч. 101).xlsx"):
             add_into_db_101(os.path.join(directory, filename))
-            new_filename = filename.split('.xlsx')[0] + '_сохраненный.xlsx'
-            new_filepath = os.path.join(directory, new_filename)
-            # os.rename(filepath, new_filepath)
 
 
 if __name__ == '__main__':
