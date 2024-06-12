@@ -17,11 +17,9 @@ directory_path = Path(
 def process_21(filename):
     df = pd.read_excel(filename)
     kv = re.search(r'(\d+) кв\.', filename.split('\\')[-1]).group(1)
+    year = re.search(r'кв\. (\d+)', filename.split('\\')[-1]).group(1)
     subgroup = None
     index = 9
-    new_df = pd.DataFrame(
-        columns=['name', 'цена до', 'единицы до', 'цена во деб', 'единицы во деб', 'цена во кред', 'единицы во кред',
-                 'цена после', 'единицы после', 'группа', 'подгруппа', 'квартал'])
     while index < len(df):
         if index + 1 >= len(df):
             break
@@ -61,7 +59,8 @@ def process_21(filename):
                 'единицы после': count_after_debet,
                 'группа': 21,
                 'подгруппа': subgroup,
-                'квартал': kv
+                'квартал': kv,
+                'год': year
             }
             collection.insert_one(data)
             index += 3
@@ -71,6 +70,7 @@ def process_21(filename):
 def process_105(filename):
     df = pd.read_excel(filename)
     kv = re.search(r'(\d+) кв\.', filename.split('\\')[-1]).group(1)
+    year = re.search(r'кв\. (\d+)', filename.split('\\')[-1]).group(1)
 
     subgroup = None
     for index, row in df.iterrows():
@@ -108,7 +108,8 @@ def process_105(filename):
                 'единицы после': count_after_debet,
                 'группа': 105,
                 'подгруппа': subgroup,
-                'квартал': kv
+                'квартал': kv,
+                'год': year
             }
             collection.insert_one(data)
 
@@ -116,11 +117,9 @@ def process_105(filename):
 def process_101(filename):
     df = pd.read_excel(filename)
     kv = re.search(r'(\d+) кв\.', filename.split('\\')[-1]).group(1)
+    year = re.search(r'кв\. (\d+)', filename.split('\\')[-1]).group(1)
     subgroup = None
     index = 9
-    new_df = pd.DataFrame(
-        columns=['name', 'цена до', 'единицы до', 'цена во деб', 'единицы во деб', 'цена во кред', 'единицы во кред',
-                 'цена после', 'единицы после', 'группа', 'подгруппа', 'квартал'])
     while index < len(df):
         if index + 1 >= len(df):
             break
@@ -160,7 +159,8 @@ def process_101(filename):
                 'единицы после': count_after_debet,
                 'группа': 101,
                 'подгруппа': subgroup,
-                'квартал': kv
+                'квартал': kv,
+                'год': year
             }
             collection.insert_one(data)
             index += 3
