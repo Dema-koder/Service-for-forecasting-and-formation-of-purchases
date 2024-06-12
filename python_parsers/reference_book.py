@@ -1,9 +1,16 @@
-import os
+import sys
+from pathlib import Path
 
+# Add the directory containing model_parameters to sys.path
+current_directory = Path(__file__).resolve().parent
+model_parameters_directory = current_directory.parent / 'python_items_classifier'
+sys.path.insert(0, str(model_parameters_directory))
+import model_parameters as model_baseline  # Import your custom module
+
+import os
 import joblib
 import pandas as pd
 from pymongo import MongoClient
-import python_modules.model_parameters as model_baseline
 
 
 client = MongoClient('localhost', 27017)
@@ -20,7 +27,7 @@ def to_db(filepath):
     df.dropna(axis=0, subset=['Название СТЕ'], inplace=True)
     # Apply the function to filter out non-numeric rows
     df_cleaned = df[df['Реестровый номер в РК'].apply(is_numeric_code)].copy()
-    loaded_classifier = joblib.load("pipeline.joblib")
+    loaded_classifier = joblib.load("../python_items_classifier/pipeline.joblib")
     lst = list(df_cleaned.columns)
     lst[4] = 'Конечный код КПГЗ'
     df_cleaned.columns = lst
@@ -30,6 +37,6 @@ def to_db(filepath):
 
 
 if __name__ == '__main__':
-    filepath = "dataset/КПГЗ ,СПГЗ, СТЕ.xlsx"
+    filepath = "../dataset/КПГЗ ,СПГЗ, СТЕ.xlsx"
     to_db(filepath)
 
