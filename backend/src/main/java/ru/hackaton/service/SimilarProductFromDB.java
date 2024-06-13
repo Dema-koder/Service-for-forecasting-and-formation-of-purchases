@@ -8,89 +8,66 @@ import me.xdrop.fuzzywuzzy.FuzzySearch;
 import org.apache.commons.text.similarity.FuzzyScore;
 import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.bson.Document;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.PriorityQueue;
+import java.util.concurrent.*;
 
 @Slf4j
 @Data
 @Component
 public class SimilarProductFromDB {
-    private static final Integer TOP_K = 5;
-    private PriorityQueue<Product>products = new PriorityQueue<>(TOP_K);
+    private static final int THREAD_POOL_SIZE = 5;
     private static MongoClient client = MongoClients.create("mongodb://localhost:27017");
     private static MongoDatabase db = client.getDatabase("stock_remainings");
-    private static MongoCollection<Document> collection = db.getCollection("Складские остатки");
+    private static MongoCollection<Document> collection = db.getCollection("Нормализированные имена");
+    @Autowired
+    private ChatGPTService chatGPTService;
 
-    private static double similar(String s1, String s2) {
-        return FuzzySearch.ratio(s1, s2) / 100.0;
-    }
+    public String mostSimilarProduct(String product) {
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+        List<Callable<String>> tasks = new ArrayList<>();
 
-    public static boolean computePrefixFunction(String cur, String t) {
-        String s = cur + "≈" + t;
-        int n = s.length();
-        int[] pi = new int[n];
-        int j = 0;
-
-        for (int i = 1; i < n; i++) {
-            while (j > 0 && s.charAt(i) != s.charAt(j)) {
-                j = pi[j - 1];
-            }
-            if (s.charAt(i) == s.charAt(j)) {
-                j++;
-            }
-            pi[i] = j;
-            if (pi[i] == cur.length())
-                return true;
+        for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+            tasks.add(() -> chatGPTService.sendMessage("Ответь на вопрос", "Как зовут президента России и сколько ему лет?"));
         }
-        return false;
-    }
 
-    public List<String> mostSimilar(String product) {
+        List<Future<String>> results;
+
+        try {
+            results = executorService.invokeAll(tasks);
+
+            executorService.shutdown();
+
+            StringBuilder answer = new StringBuilder();
+
+            for (Future<String> result : results) {
+                answer.append(result.get()).append("\n");
+            }
+
+            return answer.toString();
+        } catch (InterruptedException e) {
+            log.error("Error while executing tasks", e);
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
 
         FindIterable<Document> documents = collection.find();
-        List<String> ans = new ArrayList<>();
-        for (var document: documents) {
-            String name = document.getString("Название");
-            if (computePrefixFunction(product.toLowerCase(new Locale("ru")), name.toLowerCase(new Locale("ru")))) {
-                Product product1 = new Product(name, similar(product, name));
 
-                products.add(product1);
-            }
+        StringBuilder requestBuilder = new StringBuilder();
+//        for (var document: documents) {
+//            String productName = document.getString("name");
+//            requestBuilder.append(productName);
+//            if (requestBuilder.)
+//        }
 
-        }
-        System.out.println();
-        int k = ans.size();
-        while (k < 100 && !products.isEmpty()) {
-            ans.add(products.peek().name);
-            products.poll();
-            k++;
-        }
-        return ans;
+
+        return "";
     }
 
-    @Data
-    @AllArgsConstructor
-    static class Product implements Comparable<Product>{
-        String name;
-        double coeff;
-
-        @Override
-        public int compareTo(Product other) {
-            return Double.compare(other.coeff, this.coeff);
-        }
-    }
-
-    public static void main(String[] args) {
-        SimilarProductFromDB similarProductFromDB = new SimilarProductFromDB();
-
-        var list = similarProductFromDB.mostSimilar("Бумага");
-
-        for (var item: list) {
-            System.out.println(item);
-        }
-    }
 }
