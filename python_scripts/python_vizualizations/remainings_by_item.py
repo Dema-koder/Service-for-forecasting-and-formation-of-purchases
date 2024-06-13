@@ -1,9 +1,17 @@
+import os
+import sys
 from datetime import datetime
 
 import pandas as pd
 from matplotlib import pyplot as plt
 from pymongo import MongoClient
-from ..python_common_scripts.name_normalizer import normalize_name
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..'))
+sys.path.append(project_root)
+
+# Use absolute imports
+from python_common_scripts.name_normalizer import normalize_name
+
 
 def get_mongo_collection():
     client = MongoClient('localhost', 27017)

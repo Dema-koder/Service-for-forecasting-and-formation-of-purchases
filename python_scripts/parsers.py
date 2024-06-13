@@ -4,6 +4,7 @@ import sys
 from abc import ABC, abstractmethod
 
 import joblib
+import numpy as np
 from pymongo import MongoClient
 import re
 import pandas as pd
@@ -167,6 +168,18 @@ class ReferenceBookParser(Parser):
     def is_numeric_code(code):
         return str(code).isnumeric()
 
+    @staticmethod
+    def split_and_aggregate(name_characteristics):
+        print(name_characteristics)
+        name = name_characteristics.iloc[0]
+        position = name.find(';')
+        if position == -1:
+            return name, ""
+        else:
+            simple_name = name[:name.find(';')]
+            characteristics = name.split(';')[1:]
+            return simple_name, ';'.join(characteristics)
+
     def parse(self, filepath):
         df = pd.read_excel(filepath)
         df.dropna(axis=0, subset=['Название СТЕ'], inplace=True)
@@ -175,6 +188,10 @@ class ReferenceBookParser(Parser):
         lst = list(df_cleaned.columns)
         lst[4] = 'Конечный код КПГЗ'
         df_cleaned.columns = lst
+        print(df_cleaned['наименование характеристик'].shape[0])
+        df_cleaned['характеристики'] = np.full(df_cleaned['наименование характеристик'].shape[0], None)
+        df_cleaned[["Название СТЕ", "характеристики"]] = df_cleaned[["Название СТЕ", "наименование характеристик"]].apply(self.split_and_aggregate, axis=1, result_type='broadcast')
+
         df_cleaned['ресурсный'] = predict(df_cleaned[['Конечный код КПГЗ', 'Реестровый номер в РК']])
         data_dict = df_cleaned.to_dict('records')
         self.collection.insert_many(data_dict)
