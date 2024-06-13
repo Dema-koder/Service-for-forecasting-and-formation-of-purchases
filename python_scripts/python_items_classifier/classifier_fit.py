@@ -1,3 +1,6 @@
+import os
+import sys
+
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -5,7 +8,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 import joblib
-import model_parameters as model_baseline
+package_path = r'C:\Users\danil\Desktop\hackaton\Service-for-forecasting-and-formation-of-purchases\python_scripts\python_items_classifier'
+
+# Add the directory to sys.path
+sys.path.append(package_path)
+
+# Now you can import the module/package
+
+from model_parameters import CodeSplitter
 
 
 def is_numeric_code(code):
@@ -30,7 +40,7 @@ def split_data(df, target_column):
 def build_pipeline():
     preprocessor = ColumnTransformer(
         transformers=[
-            ('code_splitter', model_baseline.CodeSplitter(column='Конечный код КПГЗ', max_depth=9),
+            ('code_splitter', CodeSplitter(column='Конечный код КПГЗ', max_depth=9),
              ['Конечный код КПГЗ']),
             ('rest', 'passthrough', ['Реестровый номер в РК'])
         ]
@@ -53,7 +63,7 @@ def train_and_evaluate(pipeline, X_train, X_test, y_train, y_test):
 
 def main():
     # Filepath to the dataset
-    filepath = 'Dorazmetka.xlsx'
+    filepath = 'C:\\Users\danil\Desktop\hackaton\Service-for-forecasting-and-formation-of-purchases\python_scripts\python_items_classifier\Dorazmetka.xlsx'
 
     # Preprocess the data
     df_cleaned = preprocess_data(filepath)

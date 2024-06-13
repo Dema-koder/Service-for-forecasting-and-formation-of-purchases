@@ -1,9 +1,19 @@
+import sys
+
 import pandas as pd
 from pymongo import MongoClient
+from openpyxl import Workbook
 from confluent_kafka import Consumer, KafkaError
 import math
 import re
+import json
 from io import BytesIO
+from io import StringIO
+package_path = r'C:\Users\danil\Desktop\hackaton\Service-for-forecasting-and-formation-of-purchases\python_scripts\python_common_scripts'
+
+# Add the directory to sys.path
+sys.path.append(package_path)
+from name_normalizer import normalize_name
 
 client = MongoClient('localhost', 27017)
 db = client['stock_remainings']
@@ -20,7 +30,7 @@ def add_into_db_21(df, filename):
             subgroup = re.findall(pattern, row.iloc[0])
         if row.iloc[2] != 'nan' and row.iloc[20] != 'nan':
             collection.insert_one(
-                {'Название': row.iloc[2][:row.iloc[2].rfind(',')], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 21})
+                {'Название': normalize_name(row.iloc[2][:row.iloc[2].rfind(',')]), 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 21})
 
 
 def add_into_db_105(df, filename):
@@ -48,7 +58,7 @@ def add_into_db_105(df, filename):
             if is_new_subgroup and seen_one:
                 data = row.to_dict()  # Convert row to dictionary
                 collection.insert_one(
-                    {'Название': data['МОЛ'][:data['МОЛ'].rfind(',')], 'Остаток': data['Количество'], 'Подгруппа': subgroup_id, 'Дата': date,
+                    {'Название': normalize_name(data['МОЛ'][:data['МОЛ'].rfind(',')]), 'Остаток': data['Количество'], 'Подгруппа': subgroup_id, 'Дата': date,
                      'сч': 105})  # Insert document into collection
             else:
                 is_new_subgroup = False
@@ -65,7 +75,7 @@ def add_into_db_101(df, filename):
             subgroup = re.findall(pattern, row.iloc[0])
         if row.iloc[2] != 'nan' and row.iloc[20] != 'nan':
             collection.insert_one(
-                {'Название': row.iloc[2][:row.iloc[2].rfind(',')], 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 101})
+                {'Название': normalize_name(row.iloc[2][:row.iloc[2].rfind(',')]), 'Остаток': row.iloc[20], 'Подгруппа': subgroup[0], 'Дата': date, 'сч': 101})
 
 
 def process_file(file_content, filename):
@@ -93,21 +103,21 @@ def kafka_consumer():
         msg = consumer.poll(1.0)
 
         if msg is None:
-            continue
+            break
 
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
-                continue
+                break
             else:
                 print(msg.error())
-                continue
+                break
 
         filename = msg.key().decode('utf-8')
         file_content = msg.value()
 
         if file_content is None:
             print("Message value is None")
-            continue
+            break
 
         print(filename)
 
@@ -118,4 +128,5 @@ def kafka_consumer():
 
 
 if __name__ == "__main__":
+    print("ura")
     kafka_consumer()
