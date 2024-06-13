@@ -27,7 +27,7 @@ public class NewXlsxController {
     @PostMapping("/upload")
     @Operation(summary = "Upload an XLSX file", description = "Upload an XLSX file and save it with the original filename",
             requestBody = @RequestBody(content = @Content(mediaType = "multipart/form-data",
-                    schema = @Schema(implementation = XlsxController.UploadXlsxRequest.class))))
+                    schema = @Schema(implementation = NewXlsxController.UploadXlsxRequest.class))))
     public String uploadXlsx(@RequestParam("file") MultipartFile file) {
         try {
             parser.processFile(file);
