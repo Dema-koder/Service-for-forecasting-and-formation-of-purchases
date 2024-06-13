@@ -1,4 +1,4 @@
-package ru.hackaton.parser;
+package ru.hackaton.parsers;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
