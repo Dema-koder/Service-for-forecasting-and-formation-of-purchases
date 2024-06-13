@@ -4,7 +4,15 @@ import math
 from datetime import datetime
 from matplotlib import pyplot as plt
 from pmdarima import auto_arima
+import os
+import sys
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(current_dir, '..'))
+sys.path.append(project_root)
+
+# Use absolute imports
+from python_common_scripts.name_normalizer import normalize_name
 
 def get_mongo_collection():
     client = MongoClient('localhost', 27017)
@@ -65,7 +73,7 @@ def fetch_data(collection, name):
     ]
     result = list(collection.aggregate(pipeline))
     dates = [doc['date'] for doc in result]
-    data = collection.find({"name": name})
+    data = collection.find({"name": normalize_name(name)})
     return data, dates
 
 
@@ -129,12 +137,13 @@ def make_forecast(name, months):
     df.set_index('дата', inplace=True)
     model = auto_arima(df, seasonal=True, stepwise=True, trace=False, m=4, D=0)
     forecast = model.predict(n_periods=math.ceil(months / 3))
+    forecast = forecast.apply(lambda x: round(x))
 
     if forecast.max() == 0:
         return f"Кажется {name} редко используется, невозможно предсказать потребление"
 
     df_forecast = pd.DataFrame(
-        {'дата': pd.date_range(start=df.index[-1], periods=len(forecast), freq='QE'), 'прогноз': forecast})
+        {'дата': pd.date_range(start=forecast.index[0], periods=len(forecast), freq='QE'), 'прогноз': forecast})
 
     if months % 3 == 0:
         plot_forecast(df_forecast)
@@ -182,4 +191,4 @@ def make_forecast(name, months):
 
 
 if __name__ == '__main__':
-    print(make_forecast("Бумага для офисной техники IQ Allround А3, класса В+, 80 г/м2, 500л.", 12))
+    print(make_forecast("Клей монтажный «Tytanprofessional» Classic Fix каучуковый,прозрачный 310 мл", 12))
