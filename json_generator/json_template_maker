@@ -1,0 +1,49 @@
+import json
+
+# Создаем словарь для генерации JSON
+data = {
+    "id": "12345",
+    "lotEntityId": "123456",
+    "CustomerId": 123,
+    "rows": [
+        {
+            "DeliverySchedule": {
+                "dates": {
+                    "end_date": "2023-12-31",
+                    "start_date": "2023-01-01"
+                },
+                "deliveryAmount": 100,
+                "deliveryConditions": "",
+                "year": 2023
+            },
+            "address": {
+                "gar_id": "GAR-123",
+                "text": "Ул. Ленина, д. 1, кв. 1, г. Москва"
+            },
+            "entityId": 1,
+            "id": 1,
+            "nmc": 1000,
+            "okei_code": "шт.",
+            "purchaseAmount": 100,
+            "spgzCharacteristics": [
+                {
+                    "characteristicName": "Характеристика 1",
+                    "characteristicSpgzEnums": [
+                        {"value": "значение 1"}
+                    ],
+                    "conditionTypeId": 1,
+                    "kpgzCharacteristicId": 1,
+                    "okei_id": 1,
+                    "selectType": 1,
+                    "typeId": 1,
+                    "value1": 1,
+                    "value2": 2
+                }
+            ]
+        }
+    ]
+}
+
+# Генерируем JSON-файл
+with open('output.json', 'w') as f:
+    json.dump(data, f, indent=4)
