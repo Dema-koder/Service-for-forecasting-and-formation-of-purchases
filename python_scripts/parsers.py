@@ -170,7 +170,6 @@ class ReferenceBookParser(Parser):
 
     @staticmethod
     def split_and_aggregate(name_characteristics):
-        print(name_characteristics)
         name = name_characteristics.iloc[0]
         position = name.find(';')
         if position == -1:
@@ -188,7 +187,6 @@ class ReferenceBookParser(Parser):
         lst = list(df_cleaned.columns)
         lst[4] = 'Конечный код КПГЗ'
         df_cleaned.columns = lst
-        print(df_cleaned['наименование характеристик'].shape[0])
         df_cleaned['характеристики'] = np.full(df_cleaned['наименование характеристик'].shape[0], None)
         df_cleaned[["Название СТЕ", "характеристики"]] = df_cleaned[["Название СТЕ", "наименование характеристик"]].apply(self.split_and_aggregate, axis=1, result_type='broadcast')
 
