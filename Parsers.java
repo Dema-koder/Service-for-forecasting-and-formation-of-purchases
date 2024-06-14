@@ -397,8 +397,7 @@ class StockBalanceParser extends Parser {
                     String val2 = cell2.getStringCellValue();
                     double val20 = cell20.getNumericCellValue();
                     if (val2 != null) {
-                        int pos = val2.lastIndexOf(',');
-                        Document document = new Document("Название", normalizeName(val2.substring(0, pos != -1 ? pos : val2.length())))
+                        Document document = new Document("Название", normalizeName(val2))
                                 .append("Остаток", val20)
                                 .append("Подгруппа", subgroup)
                                 .append("Дата", date)
@@ -530,8 +529,7 @@ class StockBalanceParser extends Parser {
                     double val20 = cell20.getNumericCellValue();
 
                     if (val2 != null) {
-                        int pos = val2.lastIndexOf(',');
-                        Document document = new Document("Название", normalizeName(val2.substring(0, pos != -1 ? pos : val2.length())))
+                        Document document = new Document("Название", normalizeName(val2))
                                 .append("Остаток", val20)
                                 .append("Подгруппа", subgroup)
                                 .append("Дата", date)
