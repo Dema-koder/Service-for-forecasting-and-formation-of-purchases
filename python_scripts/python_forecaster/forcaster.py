@@ -6,21 +6,41 @@ from matplotlib import pyplot as plt
 from pmdarima import auto_arima
 import os
 import sys
+from dotenv import load_dotenv
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, '..'))
+dotenv_path = os.path.join(project_root, 'variables.env')
 sys.path.append(project_root)
-
-# Use absolute imports
+# Загрузка переменных окружения из файла .env
+load_dotenv(dotenv_path)
+# Используем абсолютный импорт
 from python_common_scripts.name_normalizer import normalize_name
 
+
+
 def get_mongo_collection():
-    client = MongoClient('localhost', 27017)
-    db = client['stock_remainings']
+    """
+    Возвращает коллекцию MongoDB для работы с оборотной ведомостью.
+
+    :return: Коллекция MongoDB 'Оборотная ведомость'
+    """
+    mongo_uri = os.getenv('MONGO_URI')
+    db_name = os.getenv('DB_NAME')
+    client = MongoClient(mongo_uri)
+    db = client[db_name]
     return db['Оборотная ведомость']
 
 
 def make_datetime(quarter, year):
+    """
+    Преобразует квартал и год в соответствующую дату.
+
+    :param quarter: Квартал (1-4)
+    :param year: Год
+    :return: Дата последнего дня квартала
+    """
     quarter = int(quarter)
     year = int(year)
     date_list = [
@@ -33,6 +53,13 @@ def make_datetime(quarter, year):
 
 
 def purchase(months, forecast):
+    """
+    Рассчитывает сумму закупок за заданное количество месяцев.
+
+    :param months: Количество месяцев
+    :param forecast: Прогноз потребления
+    :return: Сумма закупок
+    """
     sum_of_purchase = 0
     for quarter in range(months // 3):
         sum_of_purchase += forecast.iloc[quarter]
@@ -42,6 +69,13 @@ def purchase(months, forecast):
 
 
 def fetch_data(collection, name):
+    """
+    Получает данные из коллекции MongoDB и нормализует имена.
+
+    :param collection: Коллекция MongoDB
+    :param name: Название для нормализации
+    :return: Данные и даты
+    """
     pipeline = [
         {
             "$project": {
@@ -78,6 +112,12 @@ def fetch_data(collection, name):
 
 
 def aggregate_data(data):
+    """
+    Агрегирует данные по кварталам и годам.
+
+    :param data: Исходные данные
+    :return: Агрегированные данные
+    """
     aggregated_data = {}
     for document in data:
         key = (document["квартал"], document["год"])
@@ -88,6 +128,12 @@ def aggregate_data(data):
 
 
 def create_dataframe(aggregated_data):
+    """
+    Создает DataFrame из агрегированных данных.
+
+    :param aggregated_data: Агрегированные данные
+    :return: DataFrame
+    """
     df = pd.DataFrame(
         [(value, make_datetime(key[0], key[1])) for key, value in aggregated_data.items()],
         columns=['Kredit', 'дата']
@@ -96,6 +142,13 @@ def create_dataframe(aggregated_data):
 
 
 def add_missing_dates(df, dates):
+    """
+    Добавляет отсутствующие даты в DataFrame.
+
+    :param df: Исходный DataFrame
+    :param dates: Список дат
+    :return: DataFrame с добавленными отсутствующими датами
+    """
     new_rows = []
     for date in dates:
         if date not in df['дата'].apply(lambda x: x.strftime('%Y-%m-%d')).values:
@@ -107,15 +160,37 @@ def add_missing_dates(df, dates):
 
 
 def plot_forecast(df_forecast):
-    plt.figure(figsize=(10, 6))
+    """
+    Строит график прогноза потребления.
+
+    :param df_forecast: DataFrame с прогнозом потребления
+    """
+    plt.rcParams.update({
+        'font.size': 14,
+        'font.family': 'serif',
+        'axes.titlesize': 20,
+        'axes.labelsize': 16,
+        'xtick.labelsize': 12,
+        'ytick.labelsize': 12,
+        'figure.titlesize': 22
+    })
+    plt.figure(figsize=(8, 7))
     plt.bar(df_forecast['дата'].dt.strftime('%Y-%m'), df_forecast['прогноз'], color='blue')
     plt.xlabel('Дата')
     plt.ylabel('Прогноз потребления')
     plt.title('Прогноз потребления на конец каждого квартала')
+    plt.xticks(rotation=45, ha='right')
     plt.show()
 
 
 def make_forecast(name, months):
+    """
+    Делает прогноз потребления на заданное количество месяцев.
+
+    :param name: Название продукта
+    :param months: Количество месяцев для прогноза
+    :return: Прогноз потребления или сообщение об ошибке
+    """
     collection = get_mongo_collection()
     data, dates = fetch_data(collection, name)
     aggregated_data = aggregate_data(data)
@@ -126,11 +201,21 @@ def make_forecast(name, months):
 
     df = add_missing_dates(df, dates)
     df.sort_values(by='дата', inplace=True)
-    plt.figure(figsize=(10, 6))
+    plt.rcParams.update({
+        'font.size': 14,
+        'font.family': 'serif',
+        'axes.titlesize': 20,
+        'axes.labelsize': 16,
+        'xtick.labelsize': 12,
+        'ytick.labelsize': 12,
+        'figure.titlesize': 22
+    })
+    plt.figure(figsize=(8, 7))
     plt.bar(df['дата'].dt.strftime('%Y-%m'), df['Kredit'], color='blue')
     plt.xlabel('Дата')
     plt.ylabel('Потребление')
     plt.title('Известное потребление за период в конце квартала')
+    plt.xticks(rotation=45, ha='right')
     plt.show()
     if pd.notna(df['Kredit']).sum() == 0 or df['Kredit'].max() == 0:
         return f"Извините, кажется, {name} не тратился в течение всего времени"
@@ -158,11 +243,21 @@ def make_forecast(name, months):
                 monthly_consuming.loc[len(monthly_consuming)] = [row['дата'] - pd.offsets.MonthEnd(month),
                                                                  avg_consuming]
 
-        plt.figure(figsize=(10, 6))
-        plt.bar(monthly_consuming['дата'].dt.strftime('%Y-%m'), monthly_consuming['прогноз'], color='blue')
+        plt.rcParams.update({
+            'font.size': 14,
+            'font.family': 'serif',
+            'axes.titlesize': 20,
+            'axes.labelsize': 16,
+            'xtick.labelsize': 12,
+            'ytick.labelsize': 12,
+            'figure.titlesize': 22
+        })
+        plt.figure(figsize=(8, 7))
+        plt.bar(monthly_consuming['дата'].dt.strftime('%Y-%м'), monthly_consuming['прогноз'], color='blue')
         plt.xlabel('Дата')
         plt.ylabel('Прогноз потребления')
         plt.title('Прогноз потребления по месяцам')
+        plt.xticks(rotation=45, ha='right')
         plt.show()
 
     client = MongoClient('localhost', 27017)
