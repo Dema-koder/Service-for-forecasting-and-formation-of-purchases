@@ -86,8 +86,7 @@ public class ProcessStockRemainings {
                 double val20 = cell20.getNumericCellValue();
                 if (val2 != null){
                     System.out.println(val2);
-                    int pos = val2.lastIndexOf(',');
-                    Document document = new Document("Название", normalizeName(val2.substring(0, pos != -1? pos: val2.length() )))
+                    Document document = new Document("Название", normalizeName(val2))
                             .append("Остаток", val20)
                             .append("Подгруппа", subgroup)
                             .append("Дата", date)
@@ -221,8 +220,7 @@ public class ProcessStockRemainings {
                 double val20 = cell20.getNumericCellValue();
                 if (val2 != null){
                     System.out.println(val2);
-                    int pos = val2.lastIndexOf(',');
-                    Document document = new Document("Название", normalizeName(val2.substring(0, pos != -1? pos: val2.length() )))
+                    Document document = new Document("Название", normalizeName(val2))
                             .append("Остаток", val20)
                             .append("Подгруппа", subgroup)
                             .append("Дата", date)
