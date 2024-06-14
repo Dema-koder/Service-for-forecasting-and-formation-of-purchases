@@ -11,26 +11,34 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import ru.hackaton.parsers.XlsxParser;
+import ru.hackaton.parsers.FromMultipartToFile;
+import ru.hackaton.parsers.StockRemainingsParser;
+
+import java.io.File;
 
 @Slf4j
 @RestController
-@RequestMapping("/xlsx")
-public class NewXlsxController {
+@RequestMapping("/upload")
+public class RemainingsController {
 
     private static final String FAILED_MESSAGE = "Upload Fail";
     private static final String SUCCESS_MESSAGE = "Success Upload";
 
     @Autowired
-    private XlsxParser parser;
+    private StockRemainingsParser parser;
 
-    @PostMapping("/upload")
+    @Autowired
+    private FromMultipartToFile fromMultipartToFile;
+
+    @PostMapping("/remainings")
     @Operation(summary = "Upload an XLSX file", description = "Upload an XLSX file and save it with the original filename",
             requestBody = @RequestBody(content = @Content(mediaType = "multipart/form-data",
-                    schema = @Schema(implementation = NewXlsxController.UploadXlsxRequest.class))))
+                    schema = @Schema(implementation = RemainingsController.UploadXlsxRequest.class))))
     public String uploadXlsx(@RequestParam("file") MultipartFile file) {
         try {
-            parser.processFile(file);
+            File simplyFile = fromMultipartToFile.convertMultipartFileToFile(file);
+            parser.processFile(simplyFile);
+            simplyFile.delete();
         } catch (Exception e) {
             log.error("Exception occured: {}", e.getMessage());
             return FAILED_MESSAGE;

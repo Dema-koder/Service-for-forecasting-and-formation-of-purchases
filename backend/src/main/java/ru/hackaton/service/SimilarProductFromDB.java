@@ -1,27 +1,24 @@
 package ru.hackaton.service;
 
 import com.mongodb.client.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import me.xdrop.fuzzywuzzy.FuzzySearch;
-import org.apache.commons.text.similarity.FuzzyScore;
-import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.PriorityQueue;
 import java.util.concurrent.*;
 
 @Slf4j
 @Data
 @Component
 public class SimilarProductFromDB {
-    private static final int THREAD_POOL_SIZE = 5;
+    private static final int THREAD_POOL_SIZE = 10;
+    private static final int MAX_PRODUCTS_IN_MESSAGE = 300;
+    private static final String PROMPT = "У вас есть список товаров со склада ниже, необходимо найти наиболее похожие товары на основе поискового запроса \"огурцы\" и вывести только эти товары, строго название каждого товара в отдельной строчке, и строго без лишнего текста и форматирование. Если поиск не дает похожих результатов, следует вывести строго \"ничего не найдено\".\n" +
+            "Список товаров, каждый товар в отдельной строке:";
     private static MongoClient client = MongoClients.create("mongodb://localhost:27017");
     private static MongoDatabase db = client.getDatabase("stock_remainings");
     private static MongoCollection<Document> collection = db.getCollection("Нормализированные имена");
@@ -32,8 +29,22 @@ public class SimilarProductFromDB {
         ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
         List<Callable<String>> tasks = new ArrayList<>();
 
-        for (int i = 0; i < THREAD_POOL_SIZE; i++) {
-            tasks.add(() -> chatGPTService.sendMessage("Ответь на вопрос", "Как зовут президента России и сколько ему лет?"));
+        FindIterable<Document> documents = collection.find();
+
+        StringBuilder requestBuilder = new StringBuilder();
+        int k = 0;
+        for (var document: documents) {
+            String productName = document.getString("name");
+            requestBuilder.append(productName);
+            k += 1;
+            if (k == MAX_PRODUCTS_IN_MESSAGE) {
+                tasks.add(() -> chatGPTService.sendMessage(PROMPT, requestBuilder.toString()));
+                requestBuilder.setLength(0);
+                k = 0;
+            }
+        }
+        if (k != 0) {
+            tasks.add(() -> chatGPTService.sendMessage(PROMPT, requestBuilder.toString()));
         }
 
         List<Future<String>> results;
@@ -49,24 +60,13 @@ public class SimilarProductFromDB {
                 answer.append(result.get()).append("\n");
             }
 
-            return answer.toString();
+            return chatGPTService.sendMessage(PROMPT, answer.toString());
         } catch (InterruptedException e) {
             log.error("Error while executing tasks", e);
             Thread.currentThread().interrupt();
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
         }
-
-        FindIterable<Document> documents = collection.find();
-
-        StringBuilder requestBuilder = new StringBuilder();
-//        for (var document: documents) {
-//            String productName = document.getString("name");
-//            requestBuilder.append(productName);
-//            if (requestBuilder.)
-//        }
-
-
         return "";
     }
 
