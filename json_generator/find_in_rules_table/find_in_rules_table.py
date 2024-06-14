@@ -17,7 +17,7 @@ for file in file_paths:
     dfs.extend([value for key, value in df.items() if value.shape[0] > 0])
 
 full_df = pd.concat(dfs, ignore_index=True)
-full_df.to_excel('output.xlsx', index=False)
+full_df.to_excel('Настроечные таблицы.xlsx', index=False)
 
 def find_OKPD(name):
   df = pd.read_csv('СТЕ_ОКПД-2')
@@ -32,8 +32,9 @@ def find_in_rules(OKPD):
   flag = False
   # print(OKPD)
   for index, row in full_df.iterrows():
-    if isinstance(full_df.iloc[index, 1], str) and str(full_df.iloc[index, 1]) in str(OKPD):
-       flag = True
+    if isinstance(full_df.iloc[index, 1], str) and str(full_df.iloc[index, 1]) in str(OKPD) and len(full_df.iloc[index, 1])>=5 :
+      # print(len(OKPD))
+      flag = True
   # if flag == True:
   #   print('found')
   # else:
