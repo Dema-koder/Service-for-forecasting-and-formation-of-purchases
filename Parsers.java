@@ -86,6 +86,32 @@ class OborotyParser extends Parser {
     }
 
     private void insertDataToDb(Map<String, Object> data) {
+
+        Document queryFilter = new Document("name", data.get("name"))
+                .append("год", data.get("год"))
+                .append("квартал", data.get("квартал"));
+        Document doc = collection.findOneAndDelete(queryFilter);
+        List<String> to_sum = new ArrayList<>();
+        to_sum.add("единиц после");
+        to_sum.add("единиц кредит во");
+        to_sum.add("единиц дебет во");
+        to_sum.add("единиц до");
+        List<String> to_substitude = new ArrayList<>();
+        to_substitude.add("цена после");
+        to_substitude.add("цена кредит во");
+        to_substitude.add("цена дебет во");
+        to_substitude.add("цена до");
+        if (doc!=null){
+            for(String field : to_sum){
+                data.put(field, Double.parseDouble(data.get(field).toString() )+ Double.parseDouble(doc.get(field).toString()));
+            }
+            for(String field: to_substitude){
+                if(data.get(field) == null){
+                    data.put(field, doc.get(field));
+                }
+            }
+        }
+
         collection.insertOne(new Document(data));
     }
 
@@ -131,6 +157,15 @@ class OborotyParser extends Parser {
                 data.put("подгруппа", subgroup);
                 data.put("квартал", quarter);
                 data.put("год", year);
+                data.put("единиц до", countBeforeDebet);
+                data.put("цена до", priceBeforeDebet);
+                data.put("цена дебет во", priceInDebet);
+                data.put("единиц дебет во", countInDebet);
+                data.put("цена кредит во", priceInKredit);
+                data.put("единиц кредит во", countInKredit);
+                data.put("цена после", priceAfterDebet);
+                data.put("единиц после", countAfterDebet);
+
                 // Insert to DB
                 insertDataToDb(data);
                 index += 3;
@@ -171,12 +206,12 @@ class OborotyParser extends Parser {
             String year = quarterYear[1];
             String subgroup = null;
 
-            int i = 3;
+            int i = 2;
             while (i <= sheet.getLastRowNum()) {
                 Row row = sheet.getRow(i);
+                if (row.getCell(0) == null || row.getCell(0).toString().isEmpty()) {
 
-                if (row.getCell(0) == null) {
-                    if(row.getCell(1) != null){
+                    if(row.getCell(1) != null && !row.getCell(1).getStringCellValue().isEmpty()){
                         subgroup = row.getCell(1).getStringCellValue().split(" ")[0];
                     } else{
                         i++;
@@ -209,14 +244,14 @@ class OborotyParser extends Parser {
 
                     Map<String, Object> data = new HashMap<>();
                     data.put("name", normalizeName(name));
+                    data.put("единиц до", countBeforeDebet);
                     data.put("цена до", priceBeforeDebet);
-                    data.put("единицы до", countBeforeDebet);
-                    data.put("цена во деб", priceInDebet);
-                    data.put("единицы во деб", countInDebet);
-                    data.put("цена во кред", priceInKredit);
-                    data.put("единицы во кред", countInKredit);
+                    data.put("цена дебет во", priceInDebet);
+                    data.put("единиц дебет во", countInDebet);
+                    data.put("цена кредит во", priceInKredit);
+                    data.put("единиц кредит во", countInKredit);
                     data.put("цена после", priceAfterDebet);
-                    data.put("единицы после", countAfterDebet);
+                    data.put("единиц после", countAfterDebet);
                     data.put("группа", 105);
                     data.put("подгруппа", subgroup);
                     data.put("квартал", quarter);
@@ -313,7 +348,7 @@ class ReferenceBookParser extends Parser {
 
                 String nameCharacteristics = row.getCell(headers.indexOf("наименование характеристик")).toString();
                 String[] splitResult = splitAndAggregate(data.get("Название СТЕ"));
-                data.put("Название СТЕ", splitResult[0]);
+                data.put("Название СТЕ", splitResult[0].toLowerCase().replaceAll(" ", ""));
                 data.put("характеристики", splitResult[1]);
 
                 // Placeholder for predict function
@@ -372,6 +407,22 @@ class StockBalanceParser extends Parser {
         }
     }
 
+    private void insertDataToDb(Map<String, Object> data) {
+
+        Document queryFilter = new Document("Название", data.get("Название"))
+                .append("Дата", data.get("Дата"));
+        Document doc = collection.findOneAndDelete(queryFilter);
+        List<String> to_sum = new ArrayList<>();
+        to_sum.add("Остаток");
+        if (doc!=null){
+            for(String field : to_sum){
+                data.put(field, Double.parseDouble(data.get(field).toString() )+ Double.parseDouble(doc.get(field).toString()));
+            }
+        }
+
+        collection.insertOne(new Document(data));
+    }
+
     public void addIntoDb21(String filepath) throws IOException {
         try (FileInputStream fis = new FileInputStream(filepath); Workbook workbook = new XSSFWorkbook(fis)) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -401,8 +452,9 @@ class StockBalanceParser extends Parser {
                                 .append("Остаток", val20)
                                 .append("Подгруппа", subgroup)
                                 .append("Дата", date)
-                                .append("сч", 21);
-                        collection.insertOne(document);
+                                .append("сч", 21)
+                                .append("полное название", cell0.getStringCellValue());
+                        insertDataToDb(document);
                     }
                 } catch (NumberFormatException e) {
                     String string = cell0.getStringCellValue();
@@ -488,9 +540,10 @@ class StockBalanceParser extends Parser {
                                                         .append("Остаток", value2)
                                                         .append("Подгруппа", subgroupId)
                                                         .append("Дата", date)
-                                                        .append("сч", 105);
+                                                        .append("сч", 105)
+                                                        .append("полное название", value0.substring(0, value0.lastIndexOf(',')));
 
-                                                collection.insertOne(document);
+                                                insertDataToDb(document);
                                             }
                                         } catch (IllegalStateException ex) {
                                             System.out.println("Error processing row for MongoDB insertion: " + ex.getMessage());
@@ -533,8 +586,9 @@ class StockBalanceParser extends Parser {
                                 .append("Остаток", val20)
                                 .append("Подгруппа", subgroup)
                                 .append("Дата", date)
-                                .append("сч", 101);
-                        collection.insertOne(document);
+                                .append("сч", 101)
+                                .append("полное название", val2);
+                        insertDataToDb(document);
                     }
                 } catch (NumberFormatException e) {
                     String string = cell0.getStringCellValue();
