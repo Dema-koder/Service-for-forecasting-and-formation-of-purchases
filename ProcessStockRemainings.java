@@ -108,7 +108,7 @@ public class ProcessStockRemainings {
                                 .append("Подгруппа", subgroup)
                                 .append("Дата", date)
                                 .append("сч", 21)
-                                .append("полное название", cell0.getStringCellValue());
+                                .append("полное название", val2);
                         insertDataToDb(document);
                     }
                 } catch (NumberFormatException e) {
