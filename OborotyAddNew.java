@@ -13,8 +13,11 @@ import org.bson.Document;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,7 +34,7 @@ class OborotyAddNew {
     private static MongoClient mongoClient;
     private static MongoCollection<Document> collection;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         // Connect to MongoDB
         mongoClient = MongoClients.create("mongodb://" + HOST + ":" + PORT);
         MongoDatabase database = mongoClient.getDatabase(DATABASE_NAME);
@@ -40,6 +43,7 @@ class OborotyAddNew {
         // Example usage: process a file
         String filePath = "C:\\Users\\danil\\Desktop\\hackaton\\Service-for-forecasting-and-formation-of-purchases\\dataset\\Складские остатки\\Ведомость остатков на 30.06.2022г. (сч. 101).xlsx";
         File excelFile = new File(filePath);
+
         processFile(excelFile);
     }
 
@@ -77,6 +81,32 @@ class OborotyAddNew {
     }
 
     private static void insertDataToDb(Map<String, Object> data) {
+
+        Document queryFilter = new Document("name", data.get("name"))
+                .append("год", data.get("год"))
+                .append("квартал", data.get("квартал"));
+        Document doc = collection.findOneAndDelete(queryFilter);
+        List<String> to_sum = new ArrayList<>();
+        to_sum.add("единиц после");
+        to_sum.add("единиц кредит во");
+        to_sum.add("единиц дебет во");
+        to_sum.add("единиц до");
+        List<String> to_substitude = new ArrayList<>();
+        to_substitude.add("цена после");
+        to_substitude.add("цена кредит во");
+        to_substitude.add("цена дебет во");
+        to_substitude.add("цена до");
+        if (doc!=null){
+            for(String field : to_sum){
+                data.put(field, Double.parseDouble(data.get(field).toString() )+ Double.parseDouble(doc.get(field).toString()));
+            }
+            for(String field: to_substitude){
+                if(data.get(field) == null){
+                    data.put(field, doc.get(field));
+                }
+            }
+        }
+
         collection.insertOne(new Document(data));
     }
 
@@ -122,6 +152,15 @@ class OborotyAddNew {
                 data.put("подгруппа", subgroup);
                 data.put("квартал", quarter);
                 data.put("год", year);
+                data.put("единиц до", countBeforeDebet);
+                data.put("цена до", priceBeforeDebet);
+                data.put("цена дебет во", priceInDebet);
+                data.put("единиц дебет во", countInDebet);
+                data.put("цена кредит во", priceInKredit);
+                data.put("единиц кредит во", countInKredit);
+                data.put("цена после", priceAfterDebet);
+                data.put("единиц после", countAfterDebet);
+
                 // Insert to DB
                 insertDataToDb(data);
                 index += 3;
@@ -130,107 +169,96 @@ class OborotyAddNew {
         }
     }
 
-    private static void processFile(File file) {
-        if (file.getName().contains("сч. 21")) {
-            process21(file);
-        } else if (file.getName().contains("сч. 105")) {
-            process105(file);
-        } else if (file.getName().contains("сч. 101")) {
-            process101(file);
+    private static void processFile(File excelFile) throws IOException {
+        FileInputStream fis = new FileInputStream(excelFile);
+        Workbook workbook = new XSSFWorkbook(fis); // Load Excel workbook
+        Sheet sheet = workbook.getSheetAt(0); // Assuming there's only one sheet
+
+        String filename = excelFile.getName();
+        if (filename.contains("сч. 21")) {
+            process21(sheet, filename);
+        } else if (filename.contains("сч. 105")) {
+            process105(sheet, filename);
+        } else if (filename.contains("сч. 101")) {
+            process101(sheet, filename);
         } else {
-            System.out.println("Skipping " + file.getName() + ", no matching function found");
+            System.out.println("Skipping " + filename + ", no matching function found");
         }
     }
 
-    private static void process21(File file) {
-        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = new XSSFWorkbook(fis)) {
-            Sheet sheet = workbook.getSheetAt(0);
-            String[] quarterYear = extractQuarterYear(file.getName());
-            processCommonLogic(sheet, quarterYear[0], quarterYear[1], 21, 9, 0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private static void process21(Sheet sheet, String filename) {
+        String[] quarterYear = extractQuarterYear(filename);
+        processCommonLogic(sheet, quarterYear[0], quarterYear[1], 21, 9, 0);
     }
 
-    private static void process105(File file) {
-        try (FileInputStream fis = new FileInputStream(file)) {
-            Workbook workbook = new XSSFWorkbook(fis);
-            Sheet sheet = workbook.getSheetAt(0);
+    private static void process105(Sheet sheet, String filename) {
+        String[] quarterYear = extractQuarterYear(filename);
+        String quarter = quarterYear[0];
+        String year = quarterYear[1];
+        String subgroup = null;
 
-            String[] quarterYear = extractQuarterYear(file.getName());
-            String quarter = quarterYear[0];
-            String year = quarterYear[1];
-            String subgroup = null;
+        int i = 2;
+        while (i <= sheet.getLastRowNum()) {
+            Row row = sheet.getRow(i);
+            if (row.getCell(0) == null || row.getCell(0).toString().isEmpty()) {
 
-            int i = 3;
-            while (i <= sheet.getLastRowNum()) {
-                Row row = sheet.getRow(i);
-
-                if (row.getCell(0) == null) {
-                    if(row.getCell(1) != null){
-                        subgroup = row.getCell(1).getStringCellValue().split(" ")[0];
-                    } else{
-                        i++;
-                        continue;
-                    }
-
-                } else if (row.getCell(3) != null && row.getCell(3).getStringCellValue().equals("Итого")) {
-                    break;
-                } else {
-                    String name = row.getCell(3).getStringCellValue();
-                    if(name.isEmpty()){
-                        i++;
-                        continue;
-                    }
-                    double countBeforeDebet = getCellValue(row.getCell(5));
-                    double priceBeforeDebet = getCellValue(row.getCell(6));
-                    priceBeforeDebet = Double.isNaN(countBeforeDebet) ? priceBeforeDebet : priceBeforeDebet / countBeforeDebet;
-
-                    double priceInDebet = getCellValue(row.getCell(8));
-                    double countInDebet = getCellValue(row.getCell(7));
-                    priceInDebet = Double.isNaN(countInDebet) ? priceInDebet : priceInDebet / countInDebet;
-
-                    double priceInKredit = getCellValue(row.getCell(10));
-                    double countInKredit = getCellValue(row.getCell(9));
-                    priceInKredit = Double.isNaN(countInKredit) ? priceInKredit : priceInKredit / countInKredit;
-
-                    double priceAfterDebet = getCellValue(row.getCell(12));
-                    double countAfterDebet = getCellValue(row.getCell(11));
-                    priceAfterDebet = Double.isNaN(countAfterDebet) ? priceAfterDebet : priceAfterDebet / countAfterDebet;
-
-                    Map<String, Object> data = new HashMap<>();
-                    data.put("name", normalizeName(name));
-                    data.put("цена до", priceBeforeDebet);
-                    data.put("единицы до", countBeforeDebet);
-                    data.put("цена во деб", priceInDebet);
-                    data.put("единицы во деб", countInDebet);
-                    data.put("цена во кред", priceInKredit);
-                    data.put("единицы во кред", countInKredit);
-                    data.put("цена после", priceAfterDebet);
-                    data.put("единицы после", countAfterDebet);
-                    data.put("группа", 105);
-                    data.put("подгруппа", subgroup);
-                    data.put("квартал", quarter);
-                    data.put("год", year);
-
-                    insertDataToDb(data);
+                if(row.getCell(1) != null && !row.getCell(1).getStringCellValue().isEmpty()){
+                    subgroup = row.getCell(1).getStringCellValue().split(" ")[0];
+                } else{
+                    i++;
+                    continue;
                 }
-                i++;
+
+            } else if (row.getCell(3) != null && row.getCell(3).getStringCellValue().equals("Итого")) {
+                break;
+            } else {
+                String name = row.getCell(3).getStringCellValue();
+                if(name.isEmpty()){
+                    i++;
+                    continue;
+                }
+                double countBeforeDebet = getCellValue(row.getCell(5));
+                double priceBeforeDebet = getCellValue(row.getCell(6));
+                priceBeforeDebet = Double.isNaN(countBeforeDebet) ? priceBeforeDebet : priceBeforeDebet / countBeforeDebet;
+
+                double priceInDebet = getCellValue(row.getCell(8));
+                double countInDebet = getCellValue(row.getCell(7));
+                priceInDebet = Double.isNaN(countInDebet) ? priceInDebet : priceInDebet / countInDebet;
+
+                double priceInKredit = getCellValue(row.getCell(10));
+                double countInKredit = getCellValue(row.getCell(9));
+                priceInKredit = Double.isNaN(countInKredit) ? priceInKredit : priceInKredit / countInKredit;
+
+                double priceAfterDebet = getCellValue(row.getCell(12));
+                double countAfterDebet = getCellValue(row.getCell(11));
+                priceAfterDebet = Double.isNaN(countAfterDebet) ? priceAfterDebet : priceAfterDebet / countAfterDebet;
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("name", normalizeName(name));
+                data.put("единиц до", countBeforeDebet);
+                data.put("цена до", priceBeforeDebet);
+                data.put("цена дебет во", priceInDebet);
+                data.put("единиц дебет во", countInDebet);
+                data.put("цена кредит во", priceInKredit);
+                data.put("единиц кредит во", countInKredit);
+                data.put("цена после", priceAfterDebet);
+                data.put("единиц после", countAfterDebet);
+                data.put("группа", 105);
+                data.put("подгруппа", subgroup);
+                data.put("квартал", quarter);
+                data.put("год", year);
+
+                insertDataToDb(data);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            i++;
         }
     }
 
-    private static void process101(File file) {
-        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = new XSSFWorkbook(fis)) {
-            Sheet sheet = workbook.getSheetAt(0);
-            String[] quarterYear = extractQuarterYear(file.getName());
-            processCommonLogic(sheet, quarterYear[0], quarterYear[1], 101, 9, 0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private static void process101(Sheet sheet, String filename) {
+        String[] quarterYear = extractQuarterYear(filename);
+        processCommonLogic(sheet, quarterYear[0], quarterYear[1], 101, 9, 0);
     }
+
 
     private static String normalizeName(String name) {
         // Implement normalization logic
