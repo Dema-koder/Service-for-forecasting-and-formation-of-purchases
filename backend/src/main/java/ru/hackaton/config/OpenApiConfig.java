@@ -13,9 +13,8 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("XLSX Management API")
+                        .title("Service for forecasting and formation of purchases API")
                         .version("1.0")
-                        .description("API for managing XLSX files")
                         .termsOfService("http://swagger.io/terms/")
                         .contact(new Contact().name("Demyan Zverev").email("asotruzikovic@gmail.com"))
                         .license(new License().name("Apache 2.0").url("http://springdoc.org")));
