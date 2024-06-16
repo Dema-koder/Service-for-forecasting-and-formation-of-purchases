@@ -13,17 +13,17 @@ from pymongo import MongoClient
 def find_OKPD(name):
     # Загрузка данных из CSV файла с кодами ОКПД-2
     df = pd.read_csv(
-        '/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/backend/src/main/java/ru/hackaton/python_scripts/СТЕ_ОКПД-2.csv',
+        '/app/backend/src/main/java/ru/hackaton/python_scripts/СТЕ_ОКПД-2.csv',
         encoding='utf-8')
     # Поиск номера ОКПД-2 по названию СТЕ
-    res = df[df['Название СТЕ'] == 'папка-уголок']
+    res = df[df['Название СТЕ'] == name]
     okpd_number = 0 if len(res) == 0 else res['ОКПД-2'].values[0]
     return okpd_number
 
 
 def get_settings_table():
     # Путь к папке с настроечными таблицами
-    dir_path = '/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/dataset/Настроечные таблицы'
+    dir_path = '/backend/src/main/resources/Настроечные таблицы'
 
     dfs = []
     # Инициализация пустого списка для хранения DataFrame

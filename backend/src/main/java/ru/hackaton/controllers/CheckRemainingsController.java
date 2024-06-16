@@ -27,7 +27,7 @@ public class CheckRemainingsController {
             @ApiResponse(responseCode = "404", description = "Something went wrong", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RemainingsResponse.class)))
     })
     public ResponseEntity<RemainingsResponse> checkRemainings(@RequestParam("product") String product) {
-        String pythonScriptPath = "/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/backend/src/main/java/ru/hackaton/python_scripts/remainings_by_item.py";
+        String pythonScriptPath = "/backend/src/main/java/ru/hackaton/python_scripts/remainings_by_item.py";
         String[] command = {"python3", pythonScriptPath, product};
         String message = "";
         byte[] imageBytes = new byte[0];

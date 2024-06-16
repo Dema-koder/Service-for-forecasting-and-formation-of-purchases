@@ -18,7 +18,7 @@ import java.util.concurrent.*;
 public class SimilarProductFromDB {
     private static final int THREAD_POOL_SIZE = 5;
     private static final int MAX_PRODUCTS_IN_MESSAGE = 350;
-    private static MongoClient client = MongoClients.create("mongodb://5.39.249.253:27017");
+    private static MongoClient client = MongoClients.create("mongodb://localhost:27017");
     private static MongoDatabase db = client.getDatabase("stock_remainings");
     private static MongoCollection<Document> collection = db.getCollection("Складские остатки");
     @Autowired

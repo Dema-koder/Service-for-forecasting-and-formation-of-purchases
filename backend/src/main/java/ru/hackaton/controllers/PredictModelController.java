@@ -27,7 +27,7 @@ public class PredictModelController {
             @ApiResponse(responseCode = "404", description = "Prediction or images not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = PredictionResponse.class))),
     })
     public ResponseEntity<PredictionResponse> predict(@RequestParam("product") String product, @RequestParam("month") Integer month) {
-        String pythonScriptPath = "/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/backend/src/main/java/ru/hackaton/python_scripts/forcaster.py";
+        String pythonScriptPath = "/backend/src/main/java/ru/hackaton/python_scripts/forcaster.py";
         String[] command = {"python3", pythonScriptPath, product, month.toString()};
         String message = "";
         byte[] imageBytes1 = new byte[0];

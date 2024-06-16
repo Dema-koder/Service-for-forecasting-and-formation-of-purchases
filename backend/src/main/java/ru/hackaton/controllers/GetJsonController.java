@@ -39,7 +39,7 @@ public class GetJsonController {
                                                        @RequestParam("predict") int predict,
                                                        @RequestParam("start_date") String startDate,
                                                        @RequestParam("end_date") String endDate) {
-        String pythonScriptPath = "/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/backend/src/main/java/ru/hackaton/python_scripts/json_maker.py";
+        String pythonScriptPath = "/backend/src/main/java/ru/hackaton/python_scripts/json_maker.py";
         String[] command = {"python3", pythonScriptPath, product, String.valueOf(id), String.valueOf(idUser), String.valueOf(predict), startDate, endDate};
         String message = "";
         try {

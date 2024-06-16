@@ -11,7 +11,7 @@ from pmdarima import auto_arima
 from utils.data_scripts import get_mongo_collection, fetch_data, aggregate_data, create_dataframe, add_missing_dates, \
     mongo_find
 
-ABSOLUTE_PATH = "/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/backend/src/main/java/ru/hackaton/python_scripts/"
+ABSOLUTE_PATH = "/backend/src/main/java/ru/hackaton/python_scripts/"
 
 def purchase(months, forecast):
     """

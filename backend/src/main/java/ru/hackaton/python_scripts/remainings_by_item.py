@@ -55,7 +55,7 @@ def make_plot_of_remainings(name):
     plt.ylabel('Остатки')
     plt.title('Остатки за период в конце квартала')
     plt.xticks(rotation=45, ha='center')
-    file_name = "/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/backend/src/main/java/ru/hackaton/python_scripts/images/" + str(time_ns()) + '.png'
+    file_name = "/backend/src/main/java/ru/hackaton/python_scripts/images/" + str(time_ns()) + '.png'
     plt.savefig(file_name)
 
     return (f"По имеющимся данным на {df.iloc[-1]['дата'].strftime('%d.%m.%Y')} осталось "
