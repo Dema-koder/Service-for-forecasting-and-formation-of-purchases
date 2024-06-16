@@ -13,7 +13,7 @@ from pymongo import MongoClient
 def find_OKPD(name):
     # Загрузка данных из CSV файла с кодами ОКПД-2
     df = pd.read_csv(
-        '/app/backend/src/main/java/ru/hackaton/python_scripts/СТЕ_ОКПД-2.csv',
+        '/backend/src/main/java/ru/hackaton/python_scripts/СТЕ_ОКПД-2.csv',
         encoding='utf-8')
     # Поиск номера ОКПД-2 по названию СТЕ
     res = df[df['Название СТЕ'] == name]
