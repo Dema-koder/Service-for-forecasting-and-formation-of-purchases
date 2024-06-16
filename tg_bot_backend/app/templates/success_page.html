@@ -64,15 +64,13 @@
 <body>
     <script>
     function confirmClose() {
-        if (confirm("Are you sure you want to leave this page?")) {
-            window.open('', '_self').close();
-        }
+            window.close();
     }
     </script>
     <div class="container">
-        <h1>Login Successful</h1>
-        <p>You have logged in successfully. You may now leave the page.</p>
-        <button onclick="confirmClose()">Leave Page</button>
+        <h1>Вход в систему успешно выполнен</h1>
+        <p>Теперь можно покинуть страницу</p>
+        <button onclick="confirmClose()">Покинуть страницу</button>
     </div>
 </body>
 </html>

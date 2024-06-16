@@ -1,22 +1,19 @@
-import time
+from flask import Blueprint, request, jsonify, render_template
 from functools import wraps
-import jwt
-from bidict import bidict
-from flask import Flask, render_template, request, jsonify
+from jwt import decode
 from keycloak import KeycloakOpenID
+from bidict import bidict
+from time import time
+from .config import Config
 
-keycloak_openid = KeycloakOpenID(server_url="http://127.0.0.1:8080/",
-                                 client_id="client_id",
-                                 realm_name="realm_name",
-                                 client_secret_key="client_secret_key")
-
-app = Flask(__name__)
-
-AUTHORIZATION_TOKEN = "AUTHORIZATION_TOKEN"
+auth_bp = Blueprint('auth', __name__)
+keycloak_openid = KeycloakOpenID(server_url=Config.KEYCLOAK_URL,
+                                 client_id=Config.CLIENT_ID,
+                                 realm_name=Config.REALM_NAME,
+                                 client_secret_key=Config.CLIENT_SECRET_KEY)
 
 tokens = {}
 sessions = bidict({})
-
 
 def token_required(f):
     @wraps(f)
@@ -24,13 +21,12 @@ def token_required(f):
         token = request.headers.get('Authorization')
         if not token:
             return jsonify({"message": "Token is missing!"}), 401
-        if token != AUTHORIZATION_TOKEN:
+        if token != Config.AUTHORIZATION_TOKEN:
             return jsonify({"message": "Token is invalid!"}), 401
         return f(*args, **kwargs)
     return decorator
 
-
-@app.route('/authenticate')
+@auth_bp.route('/authenticate')
 def authenticate():
     if "code" in request.args:
         code = request.args.get('code')
@@ -45,16 +41,14 @@ def authenticate():
         return render_template('success_page.html')
     return render_template('fail_page.html')
 
-
-@app.route('/token/<int:user_id>',  methods=['GET'])
+@auth_bp.route('/token/<int:user_id>',  methods=['GET'])
 @token_required
 def get_token(user_id):
     if user_id in tokens:
         return jsonify(tokens[user_id]), 200
     return jsonify({"message": "Token not found"}), 404
 
-
-@app.route('/token/<int:user_id>', methods=['DELETE'])
+@auth_bp.route('/token/<int:user_id>', methods=['DELETE'])
 @token_required
 def delete_token(user_id):
     if user_id in tokens:
@@ -62,43 +56,40 @@ def delete_token(user_id):
         return '', 204
     return jsonify({"message": "Token not found"}), 404
 
-
-@app.route('/token/<int:user_id>/expired', methods=['GET'])
+@auth_bp.route('/token/<int:user_id>/expired', methods=['GET'])
 @token_required
 def check_token_expired(user_id):
     if user_id in tokens:
-        access_token = tokens['user_id']['access_token']
-        decoded_access_tkn = jwt.decode(access_token, options={"verify_signature": False})
-        if decoded_access_tkn["exp"] - time.time() < 0:
+        access_token = tokens[user_id]['access_token']
+        decoded_access_tkn = decode(access_token, options={"verify_signature": False})
+        if decoded_access_tkn["exp"] - time() < 0:
             return jsonify({'expired': True}), 200
         else:
             return jsonify({'expired': False}), 200
     return jsonify({"message": "Token not found"}), 404
 
-
-@app.route('/token/<int:user_id>/refresh-token-expired', methods=['GET'])
+@auth_bp.route('/token/<int:user_id>/refresh-token-expired', methods=['GET'])
 @token_required
 def check_refresh_token_expired(user_id):
     if user_id in tokens:
-        refresh_token = tokens['user_id']['refresh_token']
-        decoded_refresh_tkn = jwt.decode(refresh_token, options={"verify_signature": False})
-        if decoded_refresh_tkn["exp"] - time.time() < 0:
+        refresh_token = tokens[user_id]['refresh_token']
+        decoded_refresh_tkn = decode(refresh_token, options={"verify_signature": False})
+        if decoded_refresh_tkn["exp"] - time() < 0:
             return jsonify({'expired': True}), 200
         else:
             return jsonify({'expired': False}), 200
     return jsonify({"message": "Token not found"}), 404
 
-
-@app.route('/token/<int:user_id>/refresh', methods=['POST'])
+@auth_bp.route('/token/<int:user_id>/refresh', methods=['POST'])
 @token_required
 def refresh_token(user_id):
     if user_id in tokens:
-        tokens['user_id'] = keycloak_openid.refresh_token(tokens['user_id']['refresh_token'])
+        tokens[user_id] = keycloak_openid.refresh_token(tokens[user_id]['refresh_token'])
         return '', 204
     return jsonify({"message": "Token not found"}), 404
 
 
-@app.route('/store-session', methods=['POST'])
+@auth_bp.route('/store-session', methods=['POST'])
 @token_required
 def store_session():
     try:
@@ -109,11 +100,17 @@ def store_session():
         return jsonify({"message": str(e)}), 400
 
 
-@app.route('/home')
-def home():
-    return "home page"
+@auth_bp.route('/get-userids', methods=['GET'])
+@token_required
+def get_user_ids():
+    return jsonify({"id_list": list(tokens.keys())}), 200
 
 
-@app.route('/')
-def index():
-    return "Flask app for Telegram Bot Authentication"
+@auth_bp.route('/token/<int:user_id>/roles', methods=['GET'])
+@token_required
+def get_token_roles(user_id):
+    if user_id in tokens:
+        access_token = tokens[user_id]['access_token']
+        decoded_access_tkn = decode(access_token, options={"verify_signature": False})
+        return jsonify({'roles': decoded_access_tkn["realm_access"]["roles"]}), 200
+    return jsonify({"message": "Token not found"}), 404
