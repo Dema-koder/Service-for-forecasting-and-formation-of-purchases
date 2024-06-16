@@ -23,13 +23,13 @@ def find_OKPD(name):
 
 def get_settings_table():
     # Путь к папке с настроечными таблицами
-    dir_path = '/backend/src/main/resources/Настроечные таблицы'
+    dir_path = '/backend/src/main/resources/Настроечные таблицы/'
 
     dfs = []
     # Инициализация пустого списка для хранения DataFrame
     for file in os.listdir(dir_path):
         # Чтение Excel файлов из указанной директории
-        df = pd.read_excel(dir_path + '\\' + file, sheet_name=None)
+        df = pd.read_excel(dir_path + file, sheet_name=None)
         dfs.extend([value for key, value in df.items() if value.shape[0] > 0])
 
     # Объединение всех DataFrame в один

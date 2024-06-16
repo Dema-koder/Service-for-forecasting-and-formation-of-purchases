@@ -32,11 +32,11 @@ public class StockRemainingsParser {
             Sheet sheet = workbook.getSheetAt(0); // Assuming there's only one sheet
 
             String filename = excelFile.getName();
-            if (filename.endsWith("(сч. 21).xlsx")) {
+            if (filename.endsWith("сч_21.xlsx")) {
                 addIntoDb21(sheet, filename);
-            } else if (filename.endsWith("(сч. 105).xlsx")) {
+            } else if (filename.endsWith("сч_105.xlsx")) {
                 addIntoDb105(sheet, filename);
-            } else if (filename.endsWith("(сч. 101).xlsx")) {
+            } else if (filename.endsWith("сч_101.xlsx")) {
                 addIntoDb101(sheet, filename);
             }
 
@@ -98,6 +98,7 @@ public class StockRemainingsParser {
     }
 
     private static void addIntoDb105(Sheet sheet, String filename) {
+        log.info("Начали обрабатывать файл");
         String[] parts = filename.split("\\\\");
 
         String lastPart = parts[parts.length - 1];
@@ -155,6 +156,7 @@ public class StockRemainingsParser {
                                                     .append("Дата", date)
                                                     .append("сч", 105);
                                             //System.out.println(document);
+                                            log.info("Грузим в БД");
                                             collection.insertOne(document);
                                         }
                                     } catch (IllegalStateException ex) {

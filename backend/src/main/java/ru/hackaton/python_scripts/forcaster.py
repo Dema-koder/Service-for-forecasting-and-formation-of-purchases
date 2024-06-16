@@ -64,6 +64,7 @@ def make_forecast(name, months):
     :return: Прогноз потребления или сообщение об ошибке
     """
     collection = get_mongo_collection("Оборотная ведомость")
+    name = name.lower().replace(" ", "")
     data, dates = fetch_data(collection, name)
     aggregated_data = aggregate_data(data, "единиц кредит во")
     df = create_dataframe(aggregated_data, ['Kredit', 'дата'])

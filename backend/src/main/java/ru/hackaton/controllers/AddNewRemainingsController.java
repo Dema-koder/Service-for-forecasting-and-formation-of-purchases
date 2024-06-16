@@ -45,8 +45,10 @@ public class AddNewRemainingsController {
     })
     public ResponseEntity<String> uploadXlsx(@RequestParam("file") MultipartFile file) {
         try {
+            log.info("Имя файла: {}", file.getOriginalFilename());
             File simplyFile = fromMultipartToFile.convertMultipartFileToFile(file);
             parser.processFile(simplyFile);
+            log.info("Файл загрузился");
             simplyFile.delete();
         } catch (Exception e) {
             log.error("Exception occured: {}", e.getMessage());

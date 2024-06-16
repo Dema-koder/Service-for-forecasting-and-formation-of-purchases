@@ -69,6 +69,7 @@ public class GetJsonController {
             //System.out.println(message);
             ObjectMapper objectMapper = new ObjectMapper();
             Map<String, Object> map = objectMapper.readValue(message, new TypeReference<>() {});
+            log.info(map.toString());
             return ResponseEntity.ok(new GetJsonResponse(map));
         } catch (IOException | InterruptedException e) {
             log.error("Exception occured: {}", e.getMessage());

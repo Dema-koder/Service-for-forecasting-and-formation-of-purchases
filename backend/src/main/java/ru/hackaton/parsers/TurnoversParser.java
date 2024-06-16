@@ -31,11 +31,11 @@ public class TurnoversParser {
     private static MongoCollection<Document> collection = db.getCollection("Обороты по счету");
 
     public void processFile(File file) {
-        if (file.getName().contains("сч. 21")) {
+        if (file.getName().contains("сч_21")) {
             process21(file);
-        } else if (file.getName().contains("сч. 105")) {
+        } else if (file.getName().contains("сч_105")) {
             process105(file);
-        } else if (file.getName().contains("сч. 101")) {
+        } else if (file.getName().contains("сч_101")) {
             process101(file);
         } else {
             System.out.println("Skipping " + file.getName() + ", no matching function found");
