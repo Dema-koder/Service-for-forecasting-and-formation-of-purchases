@@ -10,6 +10,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.bson.Document;
 import org.springframework.stereotype.Component;
+import ru.hackaton.config.ApplicationConfig;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,12 +22,22 @@ import java.util.regex.Pattern;
 @Slf4j
 @Data
 public class StockRemainingsParser {
-    private static MongoClient client = MongoClients.create("mongodb://localhost:27017");
-    private static MongoDatabase db = client.getDatabase("stock_remainings");
-    private static MongoCollection<Document> collection = db.getCollection("Складские остатки");
+    final ApplicationConfig config;
+    private static MongoClient client;
+    private static MongoDatabase db;
+    private static MongoCollection<Document> collection;
+    private static final String EXCEPTION_LOG = "Exception occurred: {}";
+
+    public StockRemainingsParser(ApplicationConfig config) {
+        this.config = config;
+        client = MongoClients.create(config.getMongoUrl());
+        db = client.getDatabase("stock_remainings");
+        collection = db.getCollection("Складские остатки");
+    }
 
     public void processFile(File excelFile) {
         try {
+            log.info("Пришел новый файл со складскими остатками: {}", excelFile.getName());
             FileInputStream fis = new FileInputStream(excelFile);
             Workbook workbook = new XSSFWorkbook(fis); // Load Excel workbook
             Sheet sheet = workbook.getSheetAt(0); // Assuming there's only one sheet
@@ -43,11 +54,12 @@ public class StockRemainingsParser {
             workbook.close();
             fis.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error(EXCEPTION_LOG, e.getMessage());
         }
     }
 
     public static void addIntoDb21(Sheet sheet, String filename) {
+        log.info("Файл сч 21");
         String[] parts = filename.split("\\\\");
 
         String lastPart = parts[parts.length - 1];
@@ -56,14 +68,14 @@ public class StockRemainingsParser {
 
         String subgroup = "";
 
-        for(int i = 0; i <= sheet.getLastRowNum(); ++i){
+        for(int i = 8; i <= sheet.getLastRowNum(); ++i){
             Row row = sheet.getRow(i);
             Cell cell0 = row.getCell(0);
             if (cell0 == null){
                 continue;
             }
             try{
-                double numeric_value = Integer.parseInt(cell0.getStringCellValue());
+                double numeric_value = Integer.parseInt(cell0.getStringCellValue().replaceAll(" ", ""));
                 Cell cell2 = row.getCell(2);
                 Cell cell20 = row.getCell(20);
                 String val2 = cell2.getStringCellValue();
@@ -71,16 +83,17 @@ public class StockRemainingsParser {
                 if (val2 != null){
                     //System.out.println(val2);
                     int pos = val2.lastIndexOf(',');
-                    Document document = new Document("Название", normalizeName(val2.substring(0, pos != -1? pos: val2.length() )))
+                    Document document = new Document("Название", normalizeName(val2))
                             .append("Остаток", val20)
                             .append("Подгруппа", subgroup)
                             .append("Дата", date)
-                            .append("сч", 21);
+                            .append("сч", 21)
+                            .append("полное название", val2);
                     collection.insertOne(document);
                 }
             } catch (NumberFormatException e){
                 String string = cell0.getStringCellValue();
-                if(string.contains("21")){
+                if(string.contains("21.")){
                     Pattern pattern = Pattern.compile("21\\.\\d+");
                     Matcher matcher = pattern.matcher(string);
                     if (matcher.find()) {
@@ -98,7 +111,7 @@ public class StockRemainingsParser {
     }
 
     private static void addIntoDb105(Sheet sheet, String filename) {
-        log.info("Начали обрабатывать файл");
+        log.info("Файл сч 105");
         String[] parts = filename.split("\\\\");
 
         String lastPart = parts[parts.length - 1];
@@ -154,13 +167,13 @@ public class StockRemainingsParser {
                                                     .append("Остаток", value2)
                                                     .append("Подгруппа", subgroupId)
                                                     .append("Дата", date)
-                                                    .append("сч", 105);
+                                                    .append("сч", 105)
+                                                    .append("полное название", value0.substring(0, value0.lastIndexOf(',')));
                                             //System.out.println(document);
-                                            log.info("Грузим в БД");
                                             collection.insertOne(document);
                                         }
                                     } catch (IllegalStateException ex) {
-                                        System.out.println("Error processing row for MongoDB insertion: " + ex.getMessage());
+                                        log.error("Error processing row for MongoDB insertion: {}", ex.getMessage());
                                     }
                                 }
                         }
@@ -172,6 +185,7 @@ public class StockRemainingsParser {
     }
 
     private static void addIntoDb101(Sheet sheet, String filename) {
+        log.info("Файл сч 101");
         String[] parts = filename.split("\\\\");
 
         String lastPart = parts[parts.length - 1];
@@ -180,7 +194,7 @@ public class StockRemainingsParser {
 
         String subgroup = "";
 
-        for(int i = 0; i <= sheet.getLastRowNum(); ++i){
+        for(int i = 9; i <= sheet.getLastRowNum(); ++i){
             Row row = sheet.getRow(i);
             Cell cell0 = row.getCell(0);
             if (cell0 == null){
@@ -195,16 +209,17 @@ public class StockRemainingsParser {
                 if (val2 != null){
                     //System.out.println(val2);
                     int pos = val2.lastIndexOf(',');
-                    Document document = new Document("Название", normalizeName(val2.substring(0, pos != -1? pos: val2.length() )))
+                    Document document = new Document("Название", normalizeName(val2))
                             .append("Остаток", val20)
                             .append("Подгруппа", subgroup)
                             .append("Дата", date)
-                            .append("сч", 101);
+                            .append("сч", 101)
+                            .append("полное название", val2);
                     collection.insertOne(document);
                 }
             }catch (NumberFormatException e){
                 String string = cell0.getStringCellValue();
-                if(string.contains("101")){
+                if(string.contains("101.")){
                     Pattern pattern = Pattern.compile("101\\.\\d+");
                     Matcher matcher = pattern.matcher(string);
                     if (matcher.find()) {

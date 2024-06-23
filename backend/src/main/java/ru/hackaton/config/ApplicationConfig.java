@@ -11,4 +11,6 @@ import org.springframework.context.annotation.PropertySource;
 public class ApplicationConfig {
     @Value("${gpt.token}")
     String gptToken;
+    @Value("${mongo.url}")
+    String mongoUrl;
 }
