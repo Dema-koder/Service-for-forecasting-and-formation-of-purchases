@@ -10,6 +10,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.hackaton.service.ChatGPTService;
 
+/**
+ * REST контроллер для обработки действий пользователей.
+ *
+ * Этот контроллер предоставляет эндпоинт для обработки сообщений пользователей и получения специфических ответов от ChatGPT.
+ *
+ * Аннотация {@link RestController} указывает, что этот класс является контроллером Spring.
+ * Аннотация {@link RequestMapping} определяет базовый URL для всех эндпоинтов в этом контроллере.
+ * Аннотация {@link Tag} добавляет метаданные OpenAPI для этого контроллера.
+ */
 @RestController
 @RequestMapping("/user-action")
 @Slf4j
@@ -19,6 +28,14 @@ public class UserActionController {
     @Autowired
     ChatGPTService chatGPTService;
 
+    /**
+     * Эндпоинт для обработки сообщений пользователей.
+     *
+     * Этот метод принимает сообщение пользователя, отправляет его в ChatGPT для обработки и возвращает ответ.
+     *
+     * @param message Сообщение пользователя, которое необходимо обработать.
+     * @return Объект {@link ResponseEntity} с ответом от ChatGPT или сообщением об ошибке.
+     */
     @GetMapping
     @Operation(summary = "Process user message", description = "Processes user message and provides a specific response")
     @ApiResponse(responseCode = "200", description = "Successful response with processed message", content = @Content(mediaType = "text/plain"))

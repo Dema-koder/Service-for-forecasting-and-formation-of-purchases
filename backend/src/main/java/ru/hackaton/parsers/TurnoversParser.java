@@ -34,6 +34,11 @@ public class TurnoversParser {
     private static final String EXCEPTION_LOG = "Exception occurred: {}";
     private static final String SUCCESS_UPLOAD = "Файл успешно загружен";
 
+    /**
+     * Конструктор для инициализации компонента.
+     *
+     * @param config конфигурация приложения, содержащая URL для подключения к MongoDB
+     */
     public TurnoversParser(ApplicationConfig config) {
         this.config = config;
         client = MongoClients.create(config.getMongoUrl());
@@ -41,6 +46,11 @@ public class TurnoversParser {
         collection = db.getCollection("Оборотная ведомость");
     }
 
+    /**
+     * Метод для обработки файла с оборотами.
+     *
+     * @param file файл для обработки
+     */
     public void processFile(File file) {
         log.info("Пришел новый файл turnovers: {}", file.getName());
         if (file.getName().contains("сч_21")) {
@@ -54,6 +64,11 @@ public class TurnoversParser {
         }
     }
 
+    /**
+     * Обработка файла с кодом счёта 105.
+     *
+     * @param file файл для обработки
+     */
     private void process105(File file) {
         log.info("Файл сч 105");
         try (FileInputStream fis = new FileInputStream(file)) {
@@ -151,6 +166,16 @@ public class TurnoversParser {
         return Double.isNaN(value);
     }
 
+    /**
+     * Общая логика обработки данных из листа Excel.
+     *
+     * @param sheet     лист Excel
+     * @param quarter   квартал
+     * @param year      год
+     * @param group     код группы (21, 101, 105)
+     * @param rowIndex  индекс начала обработки строк
+     * @param nameIndex индекс столбца с наименованием
+     */
     private void processCommonLogic(Sheet sheet, String quarter, String year, int group, int rowIndex, int nameIndex) {
         String subgroup = null;
         int index = rowIndex;
@@ -210,6 +235,12 @@ public class TurnoversParser {
         }
     }
 
+    /**
+     * Извлечение квартала и года из имени файла.
+     *
+     * @param filename имя файла
+     * @return массив строк с кварталом и годом
+     */
     private String[] extractQuarterYear(String filename) {
         Pattern quarterPattern = Pattern.compile("(\\d+) кв\\.");
         Pattern yearPattern = Pattern.compile("кв\\. (\\d+)");
@@ -220,10 +251,20 @@ public class TurnoversParser {
         return new String[]{quarter, year};
     }
 
+    /**
+     * Вставка данных в MongoDB.
+     *
+     * @param data данные для вставки
+     */
     private void insertDataToDb(Map<String, Object> data) {
         collection.insertOne(new Document(data));
     }
 
+    /**
+     * Обработка файла с кодом счёта 21.
+     *
+     * @param file файл для обработки
+     */
     private void process21(File file) {
         log.info("Файл сч 21");
         try (FileInputStream fis = new FileInputStream(file); Workbook workbook = new XSSFWorkbook(fis)) {
@@ -236,6 +277,11 @@ public class TurnoversParser {
         }
     }
 
+    /**
+     * Обработка файла с кодом счёта 101.
+     *
+     * @param file файл для обработки
+     */
     private void process101(File file) {
         log.info("Файл сч 101");
         try (FileInputStream fis = new FileInputStream(file); Workbook workbook = new XSSFWorkbook(fis)) {

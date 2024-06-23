@@ -18,6 +18,9 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Компонент Spring для парсинга и сохранения данных о складских остатках из Excel файлов в MongoDB.
+ */
 @Component
 @Slf4j
 @Data
@@ -28,6 +31,11 @@ public class StockRemainingsParser {
     private static MongoCollection<Document> collection;
     private static final String EXCEPTION_LOG = "Exception occurred: {}";
 
+    /**
+     * Конструктор для инициализации компонента.
+     *
+     * @param config конфигурация приложения, содержащая URL для подключения к MongoDB
+     */
     public StockRemainingsParser(ApplicationConfig config) {
         this.config = config;
         client = MongoClients.create(config.getMongoUrl());
@@ -35,6 +43,11 @@ public class StockRemainingsParser {
         collection = db.getCollection("Складские остатки");
     }
 
+    /**
+     * Метод для обработки Excel файла со складскими остатками.
+     *
+     * @param excelFile Excel файл со складскими остатками
+     */
     public void processFile(File excelFile) {
         try {
             log.info("Пришел новый файл со складскими остатками: {}", excelFile.getName());
@@ -58,6 +71,12 @@ public class StockRemainingsParser {
         }
     }
 
+    /**
+     * Метод для обработки данных из Excel файла с кодом счёта 21 и сохранения их в MongoDB.
+     *
+     * @param sheet    лист Excel с данными
+     * @param filename имя файла
+     */
     public static void addIntoDb21(Sheet sheet, String filename) {
         log.info("Файл сч 21");
         String[] parts = filename.split("\\\\");
@@ -110,6 +129,12 @@ public class StockRemainingsParser {
         }
     }
 
+    /**
+     * Метод для обработки данных из Excel файла с кодом счёта 105 и сохранения их в MongoDB.
+     *
+     * @param sheet    лист Excel с данными
+     * @param filename имя файла
+     */
     private static void addIntoDb105(Sheet sheet, String filename) {
         log.info("Файл сч 105");
         String[] parts = filename.split("\\\\");
@@ -184,6 +209,12 @@ public class StockRemainingsParser {
         }
     }
 
+    /**
+     * Метод для обработки данных из Excel файла с кодом счёта 101 и сохранения их в MongoDB.
+     *
+     * @param sheet    лист Excel с данными
+     * @param filename имя файла
+     */
     private static void addIntoDb101(Sheet sheet, String filename) {
         log.info("Файл сч 101");
         String[] parts = filename.split("\\\\");
@@ -237,6 +268,12 @@ public class StockRemainingsParser {
 
     }
 
+    /**
+     * Метод для нормализации имени товара (удаляет пробелы и приводит к нижнему регистру).
+     *
+     * @param name исходное имя товара
+     * @return нормализованное имя товара
+     */
     private static String normalizeName(String name) {
         return name.replaceAll("\\s", "").toLowerCase();
     }

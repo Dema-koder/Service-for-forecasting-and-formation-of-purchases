@@ -8,22 +8,60 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import ru.hackaton.config.ApplicationConfig;
 
 import java.util.*;
 import java.util.concurrent.*;
 
+/**
+ * Класс для поиска наиболее похожих продуктов из базы данных складских остатков.
+ * Использует MongoDB для доступа к данным и ChatGPT для генерации ответов на основе запросов.
+ * Реализует два метода поиска: простой поиск по префиксной функции и поиск с использованием ChatGPT.
+ */
 @Slf4j
 @Data
 @Component
 public class SimilarProductFromDB {
+    final ApplicationConfig config;
+    /**
+     * Размер пула потоков для обработки данных.
+     */
     private static final int THREAD_POOL_SIZE = 5;
+    /**
+     * Максимальное количество продуктов в одном сообщении.
+     */
     private static final int MAX_PRODUCTS_IN_MESSAGE = 350;
-    private static MongoClient client = MongoClients.create("mongodb://localhost:27017");
-    private static MongoDatabase db = client.getDatabase("stock_remainings");
-    private static MongoCollection<Document> collection = db.getCollection("Складские остатки");
+    /**
+     * Клиент MongoDB для доступа к базе данных "stock_remainings".
+     */
+    private static MongoClient client;
+    /**
+     * База данных MongoDB для складских остатков.
+     */
+    private static MongoDatabase db;
+    /**
+     * Коллекция MongoDB для хранения складских остатков.
+     */
+    private static MongoCollection<Document> collection;
+    /**
+     * Сервис ChatGPT для отправки запросов и получения ответов.
+     */
     @Autowired
     private ChatGPTService chatGPTService;
 
+    public SimilarProductFromDB(ApplicationConfig config) {
+        this.config = config;
+        client = MongoClients.create(config.getMongoUrl());
+        db = client.getDatabase("stock_remainings");
+        collection = db.getCollection("Складские остатки");
+    }
+
+    /**
+     * Метод для поиска наиболее похожих продуктов на основе запроса.
+     *
+     * @param product запрос пользователя для поиска похожих продуктов
+     * @return список наиболее похожих продуктов
+     */
     public List<String> mostSimilarProduct(String product) {
         FindIterable<Document> stocksss = collection.find();
 
@@ -44,6 +82,13 @@ public class SimilarProductFromDB {
         return simpleSearchViaChatGPT(st, product);
     }
 
+    /**
+     * Метод для поиска продуктов с использованием префиксной функции.
+     *
+     * @param stocks  множество продуктов для поиска
+     * @param product запрос пользователя для поиска похожих продуктов
+     * @return множество найденных похожих продуктов
+     */
     private Set<String> searchViaPrefixFunction(Set<String>stocks, String product) {
         String[] words = product.split(" ");
         Set<String>answer = new HashSet<>();
@@ -62,6 +107,13 @@ public class SimilarProductFromDB {
         return answer;
     }
 
+    /**
+     * Метод для поиска продуктов с использованием ChatGPT.
+     *
+     * @param st      множество продуктов для поиска
+     * @param product запрос пользователя для поиска похожих продуктов
+     * @return список наиболее похожих продуктов, полученный с помощью ChatGPT
+     */
     private List<String> simpleSearchViaChatGPT(Set<String>st, String product) {
         String PROMPT = "У вас есть список товаров со склада ниже, необходимо найти ровно 5 наиболее похожих товаров на основе поискового запроса \"" + product + "\" и вывести только эти товары, строго название каждого товара в отдельной строчке, и строго без лишнего текста и форматирования.\n" +
                 "Список товаров, каждый товар в отдельной строке:";
@@ -72,100 +124,23 @@ public class SimilarProductFromDB {
         return answer;
     }
 
-//    private String searchViaChatGPT(Set<String>stocks, String product) {
-//        String PROMPT = "У вас есть список товаров со склада ниже, необходимо найти ровно 5 наиболее похожих товаров на основе поискового запроса \"" + product + "\" и вывести только эти товары, строго название каждого товара в отдельной строчке, и строго без лишнего текста и форматирования.\n" +
-//                "Список товаров, каждый товар в отдельной строке:";
-//        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-//        List<Callable<String>> tasks = new ArrayList<>();
-//
-//        StringBuilder requestBuilder = new StringBuilder();
-//        int k = 0;
-//        for (var document: stocks) {
-//            requestBuilder.append(document).append("\n");
-//            k += 1;
-//            if (k == MAX_PRODUCTS_IN_MESSAGE) {
-//                String question = requestBuilder.toString();
-//                tasks.add(() -> chatGPTService.sendMessage(PROMPT, question));
-//                log.info(question);
-//                requestBuilder.setLength(0);
-//                k = 0;
-//            }
-//        }
-//        if (k != 0) {
-//            tasks.add(() -> chatGPTService.sendMessage(PROMPT, requestBuilder.toString()));
-//        }
-//
-//        List<Future<String>> results;
-//
-//        try {
-//            results = executorService.invokeAll(tasks);
-//
-//            executorService.shutdown();
-//
-//            StringBuilder answer = new StringBuilder();
-//
-//            for (Future<String> result : results) {
-//                System.out.println(result.get());
-//                System.out.println();
-//                if (result.get().equals("404"))
-//                    continue;
-//                answer.append(result.get()).append("\n");
-//            }
-//            String result = answer.toString();
-//            if (result.isEmpty()) {
-//                log.error("Результат чаток нулевый");
-//                return "404";
-//            }
-//            String[] linesArray = result.split("\\r?\\n");
-//            if (linesArray.length > 5) {
-//                log.info("Результат чаток больше 5");
-//                Set<String> st = new HashSet<>();
-//                StringBuilder builder = new StringBuilder();
-//                for (var doc: linesArray) {
-//                    if (st.contains(doc))
-//                        continue;
-//                    st.add(doc);
-//                    if (doc.equals("404"))
-//                        continue;
-//                    builder.append(doc).append("\n");
-//                    System.out.println(doc);
-//                }
-//                return builder.toString();
-////                String result2 = chatGPTService.sendMessage(PROMPT, builder.toString());
-////                String[] linesArr2 = result2.split("\\r?\\n");
-////                StringBuilder build = new StringBuilder();
-////                for (var lin: linesArr2)
-////                    build.append(lin).append("\n");
-////                return build.toString();
-//            } else {
-//                log.info("Результат чаток меньше 5");
-//                Set<String> st = new HashSet<>();
-//                StringBuilder builder = new StringBuilder();
-//                for (var doc: linesArray) {
-//                    if (st.contains(doc))
-//                        continue;
-//                    st.add(doc);
-//                    if (doc.equals("404"))
-//                        continue;
-//                    builder.append(doc).append("\n");
-//                    System.out.println(doc);
-//                }
-//                return builder.toString();
-//            }
-//        } catch (InterruptedException e) {
-//            log.error("Error while executing tasks", e);
-//            Thread.currentThread().interrupt();
-//        } catch (ExecutionException e) {
-//            throw new RuntimeException(e);
-//        }
-//        return "У нас проблемы";
-//    }
-
+    /**
+     * Метод для нормализации строки (приведение к нижнему регистру).
+     *
+     * @param str строка для нормализации
+     * @return нормализованная строка
+     */
     private String normalize(String str) {
         str = str.toLowerCase();
         return str;
     }
 
+    /**
+     * Метод для вычисления префиксной функции строки.
+     *
+     * @param pattern строка для вычисления префиксной функции
+     * @return массив значений префиксной функции
+     */
     private int[] computePrefixFunction(String pattern) {
         int m = pattern.length();
         int[] pi = new int[m];
@@ -182,6 +157,13 @@ public class SimilarProductFromDB {
         return pi;
     }
 
+    /**
+     * Метод для проверки наличия подстроки в тексте с использованием префиксной функции.
+     *
+     * @param text    текст, в котором производится поиск
+     * @param pattern подстрока, которую необходимо найти
+     * @return true, если подстрока найдена в тексте, иначе false
+     */
     private boolean containsSubstring(String text, String pattern) {
         int n = text.length();
         int m = pattern.length();
