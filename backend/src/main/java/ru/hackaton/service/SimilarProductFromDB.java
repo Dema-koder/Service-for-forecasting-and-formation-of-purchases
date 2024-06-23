@@ -2,6 +2,8 @@ package ru.hackaton.service;
 
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Projections;
+import com.mongodb.client.model.Sorts;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
@@ -12,6 +14,7 @@ import ru.hackaton.config.ApplicationConfig;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 /**
  * Класс для поиска наиболее похожих продуктов из базы данных складских остатков.
@@ -63,126 +66,39 @@ public class SimilarProductFromDB {
      * @return список наиболее похожих продуктов
      */
     public List<String> mostSimilarProduct(String product) {
-        FindIterable<Document> stocksss = collection.find();
+        log.info("Пришел запрос от пользователя: {}", product);
 
-        Set<String>stocks = new HashSet<>();
-        for (var doc: stocksss) {
-            stocks.add(doc.getString("полное название"));
-        }
+        String[] words = product.split("\\s+");
+        Map<String, Integer> productCounter = new HashMap<>();
 
-        var st = searchViaPrefixFunction(stocks, product);
-        if (st.isEmpty()) {
-            return new ArrayList<>();
-        }
-        if (st.size() < 5) {
-            List<String> answer = new ArrayList<>();
-            answer.addAll(st);
-            return answer;
-        }
-        return simpleSearchViaChatGPT(st, product);
-    }
+        for (String word : words) {
+            word = normalize(word);
+            log.info("Ищем слово: {}", word);
 
-    /**
-     * Метод для поиска продуктов с использованием префиксной функции.
-     *
-     * @param stocks  множество продуктов для поиска
-     * @param product запрос пользователя для поиска похожих продуктов
-     * @return множество найденных похожих продуктов
-     */
-    private Set<String> searchViaPrefixFunction(Set<String>stocks, String product) {
-        String[] words = product.split(" ");
-        Set<String>answer = new HashSet<>();
-        Set<String>normStrs = new HashSet<>();
-        for (var word: words) {
-            for (String doc : stocks) {
-                String norm = normalize(doc);
-                if (containsSubstring(norm, normalize(word))) {
-                    if (normStrs.contains(norm))
-                        continue;
-                    normStrs.add(norm);
-                    answer.add(doc);
-                }
+            var filter = Filters.regex("полное название", word, "i");
+            var projection = Projections.include("полное название");
+
+            for (var doc : collection.find(filter).projection(projection)) {
+                var fullName = doc.getString("полное название");
+                log.info("Найден документ: {}", fullName);
+                productCounter.put(fullName, productCounter.getOrDefault(fullName, 0) + 1);
             }
         }
-        return answer;
+
+        log.info("Счетчики товаров: {}", productCounter);
+
+        var sortedProducts = productCounter.entrySet()
+                .stream()
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                .limit(10)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        log.info("Возвращаем следующий список: {}", sortedProducts);
+        return new ArrayList<>(sortedProducts);
     }
 
-    /**
-     * Метод для поиска продуктов с использованием ChatGPT.
-     *
-     * @param st      множество продуктов для поиска
-     * @param product запрос пользователя для поиска похожих продуктов
-     * @return список наиболее похожих продуктов, полученный с помощью ChatGPT
-     */
-    private List<String> simpleSearchViaChatGPT(Set<String>st, String product) {
-        String PROMPT = "У вас есть список товаров со склада ниже, необходимо найти ровно 5 наиболее похожих товаров на основе поискового запроса \"" + product + "\" и вывести только эти товары, строго название каждого товара в отдельной строчке, и строго без лишнего текста и форматирования.\n" +
-                "Список товаров, каждый товар в отдельной строке:";
-        StringBuilder builder = new StringBuilder();
-        for (String str: st)
-            builder.append(str).append("\n");
-        List<String> answer = List.of(chatGPTService.sendMessage(PROMPT, builder.toString()).split("\n"));
-        return answer;
-    }
-
-    /**
-     * Метод для нормализации строки (приведение к нижнему регистру).
-     *
-     * @param str строка для нормализации
-     * @return нормализованная строка
-     */
     private String normalize(String str) {
-        str = str.toLowerCase();
-        return str;
-    }
-
-    /**
-     * Метод для вычисления префиксной функции строки.
-     *
-     * @param pattern строка для вычисления префиксной функции
-     * @return массив значений префиксной функции
-     */
-    private int[] computePrefixFunction(String pattern) {
-        int m = pattern.length();
-        int[] pi = new int[m];
-        int k = 0;
-        for (int i = 1; i < m; i++) {
-            while (k > 0 && pattern.charAt(k) != pattern.charAt(i)) {
-                k = pi[k - 1];
-            }
-            if (pattern.charAt(k) == pattern.charAt(i)) {
-                k++;
-            }
-            pi[i] = k;
-        }
-        return pi;
-    }
-
-    /**
-     * Метод для проверки наличия подстроки в тексте с использованием префиксной функции.
-     *
-     * @param text    текст, в котором производится поиск
-     * @param pattern подстрока, которую необходимо найти
-     * @return true, если подстрока найдена в тексте, иначе false
-     */
-    private boolean containsSubstring(String text, String pattern) {
-        int n = text.length();
-        int m = pattern.length();
-        if (m == 0) {
-            return true;
-        }
-        int[] pi = computePrefixFunction(pattern);
-        int q = 0;
-        for (int i = 0; i < n; i++) {
-            while (q > 0 && pattern.charAt(q) != text.charAt(i)) {
-                q = pi[q - 1];
-            }
-            if (pattern.charAt(q) == text.charAt(i)) {
-                q++;
-            }
-            if (q == m) {
-                return true;
-            }
-        }
-        return false;
+        return str.trim().toLowerCase();
     }
 }
