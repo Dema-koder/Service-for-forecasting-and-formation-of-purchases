@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -141,5 +142,28 @@ public class ProductMonitoringDB {
             log.error("Ошибка при получении товаров для пользователя: {}", e.getMessage());
         }
         return products;
+    }
+
+    public List<String> scheduleRequest(long userId) {
+        List<String>answer = new ArrayList<>();
+        try {
+            Document filter = new Document()
+                    .append("userId", userId)
+                    .append("date", LocalDate.now().toString())
+                    .append("option", "Отправить уведомление пользователю");
+            log.info(filter.toString());
+            for (Document doc : collection.find(filter)) {
+                StringBuilder cur = new StringBuilder();
+                cur.append("Товар '").append(doc.getString("product"))
+                        .append("' заканчивается. Позаботтесь о закупке данного товара.");
+                answer.add(cur.toString());
+                cur.setLength(0);
+            }
+            log.info(answer.toString());
+            return answer;
+        } catch (Exception e) {
+            log.error("Ошибка при получении товаров для пользователя: {}", e.getMessage());
+        }
+        return answer;
     }
 }

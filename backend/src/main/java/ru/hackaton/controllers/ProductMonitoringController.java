@@ -61,4 +61,12 @@ public class ProductMonitoringController {
     public ResponseEntity<List<String>> allProducts(@RequestParam("user_id") long userId) {
         return ResponseEntity.ok().body(new ArrayList<>(db.allProductForSpecialUser(userId)));
     }
+
+    @GetMapping("/schedule")
+    public ResponseEntity<List<String>> scheduleRequest(@RequestParam("user_id") long userId) {
+        List<String> response = db.scheduleRequest(userId);
+        if (response.isEmpty())
+            return ResponseEntity.status(404).body(response);
+        return ResponseEntity.ok(response);
+    }
 }
