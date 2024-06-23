@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"ru.hackaton"},{"l":"ru.hackaton.config"},{"l":"ru.hackaton.controllers"},{"l":"ru.hackaton.parsers"},{"l":"ru.hackaton.service"}];updateSearchResults();
