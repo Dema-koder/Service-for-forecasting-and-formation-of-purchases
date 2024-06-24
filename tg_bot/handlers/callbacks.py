@@ -19,11 +19,14 @@ from handlers.states import BotStates
 from utils.backend_methods import get_remains, get_prediction, get_json, delete_track_product, get_users_tracks, \
     add_track_product
 
+# Load environment variables
 load_dotenv("./tg_conf.env")
 AUTH_URL = os.getenv('AUTH_URL')
 
+# Initialize router
 callback_router = Router()
 
+# Define JSON fields and paths for easier access
 JSON_FIELDS = ['Идентификатор расчета', 'Идентификатор лота', 'Идентификатор заказчика', 'Дата начала поставки',
                'Дата окончания поставки', 'Объем поставки', 'Год', 'Идентификатор ГАР адреса',
                'Адрес в текстовой форме', 'Сквозной идентификатор СПГЗ', 'Идентификатор СПГЗ',
@@ -35,10 +38,12 @@ JSON_PATHS = ['id', 'lotEntityId', 'CustomerId', 'DeliverySchedule.dates.start_d
 
 
 def auth_check(func):
+    """Decorator to check user authentication before executing a callback"""
     @wraps(func)
     async def wrapper(query: CallbackQuery, state: FSMContext, *args, **kwargs):
         user_id = query.from_user.id
         if is_refresh_expired(user_id):
+            # If refresh token is expired, delete token and request re-authentication
             delete_token(user_id)
             auth_state = str(uuid.uuid4())
             store_session(user_id, auth_state)
@@ -50,6 +55,7 @@ def auth_check(func):
             return
         else:
             if is_token_expired(user_id):
+                # If access token is expired, refresh it
                 refresh_token(user_id)
             return await func(query, state, *args, **kwargs)
 
@@ -58,9 +64,11 @@ def auth_check(func):
 
 @callback_router.callback_query(BotStates.checking_auth)
 async def check_authorization(query: CallbackQuery, state: FSMContext):
+    """Handler to check user authentication at start"""
     if get_token(query.from_user.id):
         user_roles = get_roles(query.from_user.id)
         if user_roles and "tg_admin" in user_roles:
+            # If user is an admin, show admin panel
             await query.message.delete()
             await state.set_state(BotStates.admin_choosing_action)
             admin_greet_message = await query.message.answer(
@@ -70,6 +78,7 @@ async def check_authorization(query: CallbackQuery, state: FSMContext):
                                                "Загрузить обороты по счету"]))
             await state.update_data(admin_greet=admin_greet_message)
         else:
+            # If user is not an admin, show regular user panel
             await query.message.delete()
             await state.set_state(BotStates.choosing_action)
             ask_message = await query.message.answer(
@@ -79,6 +88,7 @@ async def check_authorization(query: CallbackQuery, state: FSMContext):
                                                "Отслеживать товары"]))
             await state.update_data(start_greet=ask_message)
     else:
+        # If user is not authorized, provide authorization link
         await query.message.delete()
         auth_state = str(uuid.uuid4())
         store_session(query.from_user.id, auth_state)
@@ -92,6 +102,7 @@ async def check_authorization(query: CallbackQuery, state: FSMContext):
 
 @callback_router.callback_query(BotStates.authing_again)
 async def auth_again(query: CallbackQuery, state: FSMContext):
+    """Handle re-authorization callback"""
     user_data = await state.get_data()
     await user_data['start_greet'].delete_reply_markup()
     auth_state = str(uuid.uuid4())
@@ -107,6 +118,7 @@ async def auth_again(query: CallbackQuery, state: FSMContext):
 @callback_router.callback_query(BotStates.choosing_action)
 @auth_check
 async def choose_action(query: CallbackQuery, state: FSMContext):
+    """Handle user action choice"""
     if query.data == "Узнать складские остатки":
         await state.set_state(BotStates.stock_remains_item)
         remain_item_message = await query.message.edit_text(
@@ -259,7 +271,10 @@ async def choose_predict_period(query: CallbackQuery, state: FSMContext):
         await query.message.answer_photo(photo=FSInputFile(response_data["file_name2"]),
                                          caption="Прогнозируемое потребление товара.")
         os.remove(response_data["file_name2"])
-        await state.update_data(json_num=response_data["message"].split(" ")[2])
+        if response_data["message"] == "На складе имеется достаточное количество товаров для данного срока.":
+            await state.update_data(json_num=0)
+        else:
+            await state.update_data(json_num=response_data["message"].split(" ")[2])
         await query.message.answer(response_data["message"],
                                    reply_markup=keyboard_builder(["Сформировать закупку", "Вернуться назад↩️"]))
 
@@ -325,7 +340,10 @@ async def nlp_forecast_choose_good(query: CallbackQuery, state: FSMContext):
         await query.message.answer_photo(photo=FSInputFile(prediction_response["file_name2"]),
                                          caption="Прогнозируемое потребление товара.")
         os.remove(prediction_response["file_name2"])
-        await state.update_data(json_num=prediction_response["message"].split(" ")[2])
+        if prediction_response["message"] == "На складе имеется достаточное количество товаров для данного срока.":
+            await state.update_data(json_num=0)
+        else:
+            await state.update_data(json_num=prediction_response["message"].split(" ")[2])
         await query.message.answer(prediction_response["message"],
                                    reply_markup=keyboard_builder(["Сформировать закупку", "Вернуться назад↩️"]))
 
@@ -364,6 +382,7 @@ async def asking_editing_fields(query: CallbackQuery, state: FSMContext):
 @callback_router.callback_query(BotStates.editing_fields)
 @auth_check
 async def edit_fields(query: CallbackQuery, state: FSMContext):
+    """Handle editing of JSON fields"""
     user_data = await state.get_data()
     if query.data == "Закончить редактирование":
         await query.message.edit_text("Редактирование закончено")
@@ -423,6 +442,7 @@ async def edit_fields(query: CallbackQuery, state: FSMContext):
 @callback_router.callback_query(BotStates.admin_choosing_action)
 @auth_check
 async def admin_choose_good(query: CallbackQuery, state: FSMContext):
+    """Handler for admin choosing action"""
     if query.data == "Загрузить складские остатки":
         await query.message.edit_text("Загрузите файл, содержащий складские остатки в формате xlsx.")
         await state.set_state(BotStates.loading_remainings)
@@ -434,12 +454,16 @@ async def admin_choose_good(query: CallbackQuery, state: FSMContext):
 @callback_router.callback_query(BotStates.choosing_track_action)
 @auth_check
 async def choose_track_action(query: CallbackQuery, state: FSMContext):
+    """Handler for choosing action in tracking product menu"""
     user_data = await state.get_data()
     current_page = user_data["track_page"]
     track_list = user_data["track_prod_list"]
     if query.data == "Добавить товар":
-        await query.message.edit_text("Введите название товара для отслеживания:")
         await state.set_state(BotStates.adding_track_item)
+        track_purpose = await query.message.edit_text(
+            "Введите название товара для отслеживания:",
+            reply_markup=keyboard_builder(["Вернуться назад↩️"]))
+        await state.update_data(track_purpose=track_purpose)
     elif query.data == "Удалить товар":
         start_index = (current_page - 1) * 5
         current_products = track_list[start_index:start_index + 5]
@@ -491,27 +515,34 @@ async def choose_track_action(query: CallbackQuery, state: FSMContext):
 @callback_router.callback_query(BotStates.track_deleting_item)
 @auth_check
 async def track_delete_item(query: CallbackQuery, state: FSMContext):
+    """Handler to delete the item from tracking list"""
     user_data = await state.get_data()
     track_list = user_data["track_prod_list"]
     current_page = user_data["track_page"]
-    total_pages = math.ceil(len(track_list) / 5)
     start_index = (current_page - 1) * 5
     current_products = track_list[start_index:start_index + 5]
     if query.data == "Вернуться назад↩️":
-        products_text = "\n".join(f"<b>{i + 1}</b>. {track_list[i]}\n" for i in
-                                  range(start_index, start_index + len(current_products)))
-        buttons_texts, size = (["Добавить товар", "Удалить товар", "←",
-                                f"{current_page}/{str(total_pages)}", "→", "Вернуться назад↩️"], [1, 1, 3, 1])
-        if current_page == 1:
-            del buttons_texts[2]
-            size[2] = 2
-        if current_page == total_pages:
-            del buttons_texts[4]
-            size[2] = 2
+        if track_list:
+            await state.update_data(track_prod_list=track_list)
+            await state.update_data(track_page=1)
+            products_text = "\n".join(f"<b>{i + 1}</b>. {item}\n" for i, item in enumerate(track_list[:5]))
+            if len(track_list) < 6:
+                await query.message.edit_text(
+                    "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
+                    reply_markup=keyboard_builder(["Добавить товар", "Удалить товар", "Вернуться назад↩️"]))
+            else:
+                await query.message.edit_text(
+                    "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
+                    reply_markup=keyboard_builder(["Добавить товар", "Удалить товар", "1/" +
+                                                   str(math.ceil(len(track_list) / 5)), "→", "Вернуться назад↩️"],
+                                                  [1, 1, 2, 1]))
+        else:
+            await query.message.edit_text(
+                "<b>У Вас пока что нет отслеживаемых товаров.</b>\n\nЧтобы добавить товар воспользуйтесь кнопками "
+                "ниже.", reply_markup=keyboard_builder(["Добавить товар", "Вернуться назад↩️"]), parse_mode="HTML")
+            await state.update_data(track_prod_list=[])
+            await state.update_data(track_page=1)
         await state.set_state(BotStates.choosing_track_action)
-        await query.message.edit_text(
-            "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
-            reply_markup=keyboard_builder(buttons_texts, size))
     else:
         del_response = delete_track_product(query.from_user.id, track_list[int(query.data) - 1])
         if del_response:
@@ -552,7 +583,7 @@ async def track_delete_item(query: CallbackQuery, state: FSMContext):
 @callback_router.callback_query(BotStates.inserting_track_item)
 @auth_check
 async def insert_track_item(query: CallbackQuery, state: FSMContext):
-    print(323232)
+    """Handler to put the item to the tracking list"""
     user_data = await state.get_data()
     track_list = user_data["track_prod_list"]
     current_page = user_data["track_page"]
@@ -600,3 +631,31 @@ async def insert_track_item(query: CallbackQuery, state: FSMContext):
         await query.message.answer(
             "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
             reply_markup=keyboard_builder(buttons_texts, size))
+
+
+@callback_router.callback_query(BotStates.adding_track_item)
+@auth_check
+async def add_track_item_back(query: CallbackQuery, state: FSMContext):
+    """Handler to return back to menu from adding the track item"""
+    track_list = get_users_tracks(query.from_user.id)
+    if track_list:
+        await state.update_data(track_prod_list=track_list)
+        await state.update_data(track_page=1)
+        products_text = "\n".join(f"<b>{i + 1}</b>. {item}\n" for i, item in enumerate(track_list[:5]))
+        if len(track_list) < 6:
+            await query.message.edit_text(
+                "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
+                reply_markup=keyboard_builder(["Добавить товар", "Удалить товар", "Вернуться назад↩️"]))
+        else:
+            await query.message.edit_text(
+                "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
+                reply_markup=keyboard_builder(["Добавить товар", "Удалить товар", "1/" +
+                                               str(math.ceil(len(track_list) / 5)), "→", "Вернуться назад↩️"],
+                                              [1, 1, 2, 1]))
+    else:
+        await query.message.edit_text(
+            "<b>У Вас пока что нет отслеживаемых товаров.</b>\n\nЧтобы добавить товар воспользуйтесь кнопками "
+            "ниже.", reply_markup=keyboard_builder(["Добавить товар", "Вернуться назад↩️"]), parse_mode="HTML")
+        await state.update_data(track_prod_list=[])
+        await state.update_data(track_page=1)
+    await state.set_state(BotStates.choosing_track_action)
