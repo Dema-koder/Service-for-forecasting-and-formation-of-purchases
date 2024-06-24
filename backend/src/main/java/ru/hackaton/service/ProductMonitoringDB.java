@@ -44,7 +44,7 @@ public class ProductMonitoringDB {
 
     public String addToMonitoringDB(long userId, String product) {
         try {
-            String pythonScriptPath = "/Users/demanzverev/IdeaProjects/Service-for-forecasting-and-formation-of-purchases/backend/src/main/java/ru/hackaton/python_scripts/forcaster.py";
+            String pythonScriptPath = "/backend/src/main/java/ru/hackaton/python_scripts/forcaster.py";
             String[] command = {"python3", pythonScriptPath, product, Integer.toString(3)};
             String message = "";
             String answerFromPrediction = "";
