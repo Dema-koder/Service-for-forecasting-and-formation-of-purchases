@@ -9,8 +9,6 @@ load_dotenv("./tg_conf.env")
 
 JAVA_BACKEND = os.getenv('JAVA_BACKEND')
 
-
-
 def get_products(message):
     params = {'product': message}
     response = requests.get(JAVA_BACKEND + "/search-product", params=params)

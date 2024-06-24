@@ -143,11 +143,15 @@ async def choose_action(message: Message, state: FSMContext):
                     text_product_list = "\n".join(f"<b>{i + 1}</b>. {item}\n"
                                                   for i, item in enumerate(prediction_prod_list))
                     await state.set_state(BotStates.nlp_predict_choosing_good)
+                    prod_list_len = len(prediction_prod_list)
+                    if prod_list_len < 6:
+                        buttons_size = [5, 1]
+                    else:
+                        buttons_size = [prod_list_len // 2, prod_list_len - prod_list_len // 2]
                     propose_goods_message = await message.answer(
                         "<b>Пожалуйста, выберите товар из списка, нажав соответствующую кнопку с номером:</b>\n\n" +
                         text_product_list, parse_mode="HTML",
-                        reply_markup=keyboard_builder([str(i) for i in range(1, len(prediction_prod_list) + 1)],
-                                                      [5, 1]))
+                        reply_markup=keyboard_builder([str(i) for i in range(1, prod_list_len + 1)], buttons_size))
                     await state.update_data(propose_goods=propose_goods_message)
                 else:
                     message_fail = await message.answer(
@@ -189,11 +193,17 @@ async def choose_action(message: Message, state: FSMContext):
                     text_product_list = "\n".join(f"<b>{i + 1}</b>. {item}\n"
                                                   for i, item in enumerate(remains_prod_list))
                     await state.set_state(BotStates.remain_choosing_good)
+                    prod_list_len = len(remains_prod_list)
+                    if prod_list_len < 6:
+                        buttons_size = [5, 1]
+                    else:
+                        buttons_size = [prod_list_len // 2, prod_list_len - prod_list_len // 2]
                     await message.answer(
                         "<b>Пожалуйста, выберите товар из списка, нажав соответствующую кнопку с номером:</b>\n\n" +
                         text_product_list, parse_mode="HTML",
-                        reply_markup=keyboard_builder([str(i) for i in range(1, len(remains_prod_list) + 1)], [5, 1]))
+                        reply_markup=keyboard_builder([str(i) for i in range(1, prod_list_len + 1)], buttons_size))
                 else:
+                    await state.set_state(BotStates.stock_remains_item)
                     message_fail = await message.answer(
                         "Данный товар не найден, пожалуйста введите название другого товара.",
                         reply_markup=keyboard_builder(["Вернуться назад↩️"]))
@@ -220,7 +230,7 @@ async def choose_action(message: Message, state: FSMContext):
 @auth_check
 async def stock_remains(message: Message, state: FSMContext):
     user_data = await state.get_data()
-    await user_data["remain_ask_item"].edit_text(user_data["remain_ask_item"].text)
+    await user_data["remain_ask_item"].delete_reply_markup()
     remains_prod_list = get_products(message.text)
     if remains_prod_list and len(remains_prod_list) == 1:
         await state.update_data(chosen_product=remains_prod_list[0])
@@ -236,10 +246,15 @@ async def stock_remains(message: Message, state: FSMContext):
         await state.update_data(remains_products=remains_prod_list)
         products_text = "\n".join(f"<b>{i + 1}</b>. {item}\n" for i, item in enumerate(remains_prod_list))
         await state.set_state(BotStates.remain_choosing_good)
+        prod_list_len = len(remains_prod_list)
+        if prod_list_len < 6:
+            buttons_size = [5, 1]
+        else:
+            buttons_size = [prod_list_len // 2, prod_list_len - prod_list_len // 2]
         await message.answer(
             "<b>Пожалуйста, выберите товар из списка, нажав соответствующую кнопку с номером:</b>\n\n" +
             products_text, parse_mode="HTML",
-            reply_markup=keyboard_builder([str(i) for i in range(1, len(remains_prod_list) + 1)], [5, 1]))
+            reply_markup=keyboard_builder([str(i) for i in range(1, prod_list_len + 1)], buttons_size))
     else:
         fail_message = await message.answer("Данный товар не найден, пожалуйста введите название другого товара.",
                                             reply_markup=keyboard_builder(["Вернуться назад↩️"]))
@@ -264,10 +279,15 @@ async def prediction_item(message: Message, state: FSMContext):
         await state.update_data(prediction_products=predict_prod_list)
         products_text = "\n".join(f"<b>{i + 1}</b>. {item}\n" for i, item in enumerate(predict_prod_list))
         await state.set_state(BotStates.predict_choosing_good)
+        prod_list_len = len(predict_prod_list)
+        if prod_list_len < 6:
+            buttons_size = [5, 1]
+        else:
+            buttons_size = [prod_list_len // 2, prod_list_len - prod_list_len // 2]
         propose_goods = await message.answer(
             "<b>Пожалуйста, выберите товар из списка, нажав соответствующую кнопку с номером:</b>\n\n" +
             products_text, parse_mode="HTML",
-            reply_markup=keyboard_builder([str(i) for i in range(1, len(predict_prod_list) + 1)], [5, 1]))
+            reply_markup=keyboard_builder([str(i) for i in range(1, len(predict_prod_list) + 1)], buttons_size))
         await state.update_data(propose_goods=propose_goods)
     else:
         fail_message = await message.answer("Данный товар не найден, пожалуйста введите название другого товара.",
@@ -292,10 +312,15 @@ async def predict_choose_good(message: Message, state: FSMContext):
         await state.update_data(period_propose=period_propose)
     else:
         products_text = "\n".join(f"<b>{i + 1}</b>. {item}\n" for i, item in enumerate(product_list))
+        prod_list_len = len(product_list)
+        if prod_list_len < 6:
+            buttons_size = [5, 1]
+        else:
+            buttons_size = [prod_list_len // 2, prod_list_len - prod_list_len // 2]
         propose_goods = await message.answer(
             "<b>Товара с таким номером нет\n\nПожалуйста, выберите товар из списка, нажав соответствующую кнопку с "
             "номером:</b>\n\n" + products_text, parse_mode="HTML",
-            reply_markup=keyboard_builder([str(i) for i in range(1, len(product_list) + 1)], [5, 1]))
+            reply_markup=keyboard_builder([str(i) for i in range(1, len(product_list) + 1)], buttons_size))
         await state.update_data(propose_goods=propose_goods)
 
 
@@ -378,10 +403,15 @@ async def nlp_forecast_choose_good(message: Message, state: FSMContext):
                                  reply_markup=keyboard_builder(["Сформировать закупку", "Вернуться назад↩️"]))
     else:
         products_text = "\n".join(f"<b>{i + 1}</b>. {item}\n" for i, item in enumerate(product_list))
+        prod_list_len = len(product_list)
+        if prod_list_len < 6:
+            buttons_size = [5, 1]
+        else:
+            buttons_size = [prod_list_len // 2, prod_list_len - prod_list_len // 2]
         propose_goods = await message.answer(
             "<b>Товара с таким номером нет\n\nПожалуйста, выберите товар из списка, нажав соответствующую кнопку с "
             "номером:</b>\n\n" + products_text, parse_mode="HTML",
-            reply_markup=keyboard_builder([str(i) for i in range(1, len(product_list) + 1)], [5, 1]))
+            reply_markup=keyboard_builder([str(i) for i in range(1, prod_list_len + 1)], buttons_size))
         await state.update_data(propose_goods=propose_goods)
 
 
@@ -517,7 +547,7 @@ async def add_track_item(message: Message, state: FSMContext):
             "Пожалуйста, выберите товар для добавления в список, нажав соответствующую кнопку с номером.\n\n" +
             products_text, parse_mode="HTML",
             reply_markup=keyboard_builder([str(i) for i in range(1, len(items_add) + 1)] + ["Вернуться назад↩️"],
-                                          [len(items_add), 1, 1]))
+                                          [len(items_add) // 2, len(items_add) - len(items_add) // 2, 1]))
     else:
         await message.answer("Данный товар не найден, пожалуйста введите название другого товара.",
                              reply_markup=keyboard_builder(["Вернуться назад↩️"]))

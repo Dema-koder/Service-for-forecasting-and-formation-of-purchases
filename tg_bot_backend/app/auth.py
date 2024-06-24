@@ -12,7 +12,8 @@ keycloak_openid = KeycloakOpenID(server_url=Config.KEYCLOAK_URL,
                                  realm_name=Config.REALM_NAME,
                                  client_secret_key=Config.CLIENT_SECRET_KEY)
 
-REDIRECT_URI = "http://193.124.33.166:9000/authenticate"
+load_dotenv("./tg_conf.env")
+REDIRECT_URL = os.getenv('REDIRECT_URL')
 
 tokens = {}
 sessions = bidict({})

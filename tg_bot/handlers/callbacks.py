@@ -133,6 +133,8 @@ async def choose_action(query: CallbackQuery, state: FSMContext):
             await query.message.edit_text(
                 "<b>У Вас пока что нет отслеживаемых товаров.</b>\n\nЧтобы добавить товар воспользуйтесь кнопками "
                 "ниже.", reply_markup=keyboard_builder(["Добавить товар", "Вернуться назад↩️"]), parse_mode="HTML")
+            await state.update_data(track_prod_list=[])
+            await state.update_data(track_page=1)
         await state.set_state(BotStates.choosing_track_action)
     else:
         await state.set_state(BotStates.prediction_item)
@@ -433,12 +435,9 @@ async def admin_choose_good(query: CallbackQuery, state: FSMContext):
 @auth_check
 async def choose_track_action(query: CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
-    track_list = user_data["track_prod_list"]
     current_page = user_data["track_page"]
-    total_pages = math.ceil(len(track_list) / 5)
-    if query.data == f"{current_page}/{total_pages}":
-        await query.answer(f"Вы находитесь на странице под номером {current_page} из {total_pages}")
-    elif query.data == "Добавить товар":
+    track_list = user_data["track_prod_list"]
+    if query.data == "Добавить товар":
         await query.message.edit_text("Введите название товара для отслеживания:")
         await state.set_state(BotStates.adding_track_item)
     elif query.data == "Удалить товар":
@@ -461,27 +460,32 @@ async def choose_track_action(query: CallbackQuery, state: FSMContext):
             reply_markup=keyboard_builder(["Узнать складские остатки", "Сформировать прогноз", "Отслеживать товары"]))
         await state.update_data(start_greet=ask_message)
     else:
-        if query.data == "→":
-            current_page += 1
-        if query.data == "←":
-            current_page -= 1
-        buttons_texts, size = (["Добавить товар", "Удалить товар", "←",
-                                f"{current_page}/{str(total_pages)}", "→", "Вернуться назад↩️"], [1, 1, 3, 1])
-        if current_page == 1:
-            del buttons_texts[2]
-            size[2] = 2
-        if current_page == total_pages:
-            del buttons_texts[4]
-            size[2] = 2
-        start_index = (current_page - 1) * 5
-        await state.update_data(track_page=current_page)
-        current_products = track_list[start_index:start_index + 5]
-        products_text = "\n".join(f"<b>{i + 1}</b>. {track_list[i]}\n" for i in
-                                  range(start_index, start_index + len(current_products)))
-        await query.message.edit_text(
-            "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
-            reply_markup=keyboard_builder(buttons_texts, size))
-        await state.set_state(BotStates.choosing_track_action)
+        track_list = user_data["track_prod_list"]
+        total_pages = math.ceil(len(track_list) / 5)
+        if query.data == f"{current_page}/{total_pages}":
+            await query.answer(f"Вы находитесь на странице под номером {current_page} из {total_pages}")
+        else:
+            if query.data == "→":
+                current_page += 1
+            if query.data == "←":
+                current_page -= 1
+            buttons_texts, size = (["Добавить товар", "Удалить товар", "←",
+                                    f"{current_page}/{str(total_pages)}", "→", "Вернуться назад↩️"], [1, 1, 3, 1])
+            if current_page == 1:
+                del buttons_texts[2]
+                size[2] = 2
+            if current_page == total_pages:
+                del buttons_texts[4]
+                size[2] = 2
+            start_index = (current_page - 1) * 5
+            await state.update_data(track_page=current_page)
+            current_products = track_list[start_index:start_index + 5]
+            products_text = "\n".join(f"<b>{i + 1}</b>. {track_list[i]}\n" for i in
+                                      range(start_index, start_index + len(current_products)))
+            await query.message.edit_text(
+                "<b>Список товаров, для которых отслеживаются остатки:</b>\n\n" + products_text, parse_mode="HTML",
+                reply_markup=keyboard_builder(buttons_texts, size))
+            await state.set_state(BotStates.choosing_track_action)
 
 
 @callback_router.callback_query(BotStates.track_deleting_item)

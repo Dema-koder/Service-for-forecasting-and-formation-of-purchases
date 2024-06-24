@@ -18,13 +18,6 @@ import org.springframework.context.annotation.PropertySource;
 @Data
 @PropertySource("application.properties")
 public class ApplicationConfig {
-    /**
-     * Токен для доступа к GPT API.
-     *
-     * Значение загружается из свойства `gpt.token` в файле `application.properties`.
-     */
-    @Value("${gpt.token}")
-    String gptToken;
 
     /**
      * URL для подключения к MongoDB.

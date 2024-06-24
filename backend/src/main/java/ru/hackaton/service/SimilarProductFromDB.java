@@ -46,11 +46,6 @@ public class SimilarProductFromDB {
      * Коллекция MongoDB для хранения складских остатков.
      */
     private static MongoCollection<Document> collection;
-    /**
-     * Сервис ChatGPT для отправки запросов и получения ответов.
-     */
-    @Autowired
-    private ChatGPTService chatGPTService;
 
     public SimilarProductFromDB(ApplicationConfig config) {
         this.config = config;

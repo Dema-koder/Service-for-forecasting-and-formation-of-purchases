@@ -19,7 +19,7 @@ async def main():
     send_news_partial = partial(send_news, bot_instance=bot)
     aiocron.crontab('0 7 * * *', func=send_news_partial, start=True, tz=timezone)
     remain_aware_partial = partial(remain_aware, bot_instance=bot)
-    aiocron.crontab('25 0 * * *', func=remain_aware_partial, start=True, tz=timezone)
+    aiocron.crontab('0 8 * * *', func=remain_aware_partial, start=True, tz=timezone)
     await dp.start_polling(bot, skip_updates=True)
 
 
