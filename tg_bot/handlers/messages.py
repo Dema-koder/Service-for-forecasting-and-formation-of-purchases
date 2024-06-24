@@ -17,11 +17,13 @@ from handlers.states import BotStates
 
 from bot_init import bot
 
+# Load environment variables
 load_dotenv("./tg_conf.env")
 AUTH_URL = os.getenv('AUTH_URL')
 
 message_router = Router()
 
+# Fields for JSON processing
 JSON_FIELDS = ['Идентификатор расчета', 'Идентификатор лота', 'Идентификатор заказчика', 'Дата начала поставки',
                'Дата окончания поставки', 'Объем поставки', 'Год', 'Идентификатор ГАР адреса',
                'Адрес в текстовой форме', 'Сквозной идентификатор СПГЗ', 'Идентификатор СПГЗ',
@@ -33,6 +35,7 @@ JSON_PATHS = ['id', 'lotEntityId', 'CustomerId', 'DeliverySchedule.dates.start_d
 
 
 def auth_check(func):
+    """Decorator to check user authentication before executing a handler"""
     @wraps(func)
     async def wrapper(message: Message, state: FSMContext, *args, **kwargs):
         user_id = message.from_user.id
@@ -56,6 +59,7 @@ def auth_check(func):
 
 @message_router.message(BotStates.checking_auth)
 async def check_authorization(message: Message, state: FSMContext):
+    """Decorator to check user authentication before executing a handler"""
     user_data = await state.get_data()
     await user_data['start_greet'].edit_text(user_data['start_greet'].text)
     auth_state = str(uuid.uuid4())
@@ -69,6 +73,7 @@ async def check_authorization(message: Message, state: FSMContext):
 
 @message_router.message(BotStates.authing_again)
 async def auth_again(message: Message, state: FSMContext):
+    """Handler for re-authorization"""
     user_data = await state.get_data()
     await user_data['start_greet'].edit_text(user_data['start_greet'].text)
     auth_state = str(uuid.uuid4())
@@ -84,13 +89,12 @@ async def auth_again(message: Message, state: FSMContext):
 @message_router.message(BotStates.choosing_action)
 @auth_check
 async def choose_action(message: Message, state: FSMContext):
+    """Handler for choosing an action by natural language, encoded with digits"""
     user_data = await state.get_data()
     await user_data["start_greet"].edit_text(user_data["start_greet"].text)
     action_code = get_action_code(message.text)
     if action_code:
-        code_parameters = action_code.split(",")
-        for index in range(0, len(code_parameters)):
-            code_parameters[index] = code_parameters[index].strip()
+        code_parameters = [param.strip() for param in action_code.split(",")]
         if code_parameters[0] == '3' or len(code_parameters) != 3:
             ask_message = await message.answer(
                 "<b>Не понял Вас, выберите одно из предложенных ниже действий или опишите по-другому, что Вы хотите "
@@ -132,7 +136,11 @@ async def choose_action(message: Message, state: FSMContext):
                         await message.answer_photo(photo=FSInputFile(prediction_response["file_name2"]),
                                                    caption="Прогнозируемое потребление товара.")
                         os.remove(prediction_response["file_name2"])
-                        await state.update_data(json_num=prediction_response["message"].split(" ")[2])
+                        if prediction_response["message"] == ("На складе имеется достаточное количество товаров для "
+                                                              "данного срока."):
+                            await state.update_data(json_num=0)
+                        else:
+                            await state.update_data(json_num=prediction_response["message"].split(" ")[2])
                         await message.answer(prediction_response["message"],
                                              reply_markup=keyboard_builder(
                                                  ["Сформировать закупку", "Вернуться назад↩️"]))
@@ -203,7 +211,6 @@ async def choose_action(message: Message, state: FSMContext):
                         text_product_list, parse_mode="HTML",
                         reply_markup=keyboard_builder([str(i) for i in range(1, prod_list_len + 1)], buttons_size))
                 else:
-                    await state.set_state(BotStates.stock_remains_item)
                     message_fail = await message.answer(
                         "Данный товар не найден, пожалуйста введите название другого товара.",
                         reply_markup=keyboard_builder(["Вернуться назад↩️"]))
@@ -229,6 +236,7 @@ async def choose_action(message: Message, state: FSMContext):
 @message_router.message(BotStates.stock_remains_item)
 @auth_check
 async def stock_remains(message: Message, state: FSMContext):
+    """Handler for identifying item for stock balances"""
     user_data = await state.get_data()
     await user_data["remain_ask_item"].delete_reply_markup()
     remains_prod_list = get_products(message.text)
@@ -258,12 +266,14 @@ async def stock_remains(message: Message, state: FSMContext):
     else:
         fail_message = await message.answer("Данный товар не найден, пожалуйста введите название другого товара.",
                                             reply_markup=keyboard_builder(["Вернуться назад↩️"]))
+        await state.update_data(remain_ask_item=fail_message)
         await state.update_data(predict_params_propose=fail_message)
 
 
 @message_router.message(BotStates.prediction_item)
 @auth_check
 async def prediction_item(message: Message, state: FSMContext):
+    """Handler for choosing a product for prediction"""
     user_data = await state.get_data()
     await user_data["predict_params_propose"].edit_text(user_data["predict_params_propose"].text)
     predict_prod_list = get_products(message.text)
@@ -298,6 +308,7 @@ async def prediction_item(message: Message, state: FSMContext):
 @message_router.message(BotStates.predict_choosing_good)
 @auth_check
 async def predict_choose_good(message: Message, state: FSMContext):
+    """Handler for actual choosing product among list of proposed"""
     user_data = await state.get_data()
     product_list = user_data["prediction_products"]
     edit_message = user_data['propose_goods']
@@ -327,6 +338,7 @@ async def predict_choose_good(message: Message, state: FSMContext):
 @message_router.message(BotStates.choosing_predict_period)
 @auth_check
 async def choose_period(message: Message, state: FSMContext):
+    """Handler for choosing a period for prediction"""
     user_data = await state.get_data()
     desired_product = user_data["chosen_product"]
     period_message = user_data["period_propose"]
@@ -354,7 +366,10 @@ async def choose_period(message: Message, state: FSMContext):
             await message.answer_photo(photo=FSInputFile(prediction_response["file_name2"]),
                                        caption="Прогнозируемое потребление товара.")
             os.remove(prediction_response["file_name2"])
-            await state.update_data(json_num=prediction_response["message"].split(" ")[2])
+            if prediction_response["message"] == "На складе имеется достаточное количество товаров для данного срока.":
+                await state.update_data(json_num=0)
+            else:
+                await state.update_data(json_num=prediction_response["message"].split(" ")[2])
             await message.answer(prediction_response["message"],
                                  reply_markup=keyboard_builder(["Сформировать закупку", "Вернуться назад↩️"]))
     else:
@@ -368,6 +383,7 @@ async def choose_period(message: Message, state: FSMContext):
 @message_router.message(BotStates.nlp_predict_choosing_good)
 @auth_check
 async def nlp_forecast_choose_good(message: Message, state: FSMContext):
+    """Handler for choosing a product for prediction if request was by natural language"""
     user_data = await state.get_data()
     product_list = user_data["prediction_products"]
     edit_message = user_data['propose_goods']
@@ -398,7 +414,10 @@ async def nlp_forecast_choose_good(message: Message, state: FSMContext):
             await message.answer_photo(photo=FSInputFile(prediction_response["file_name2"]),
                                        caption="Прогнозируемое потребление товара.")
             os.remove(prediction_response["file_name2"])
-            await state.update_data(json_num=prediction_response["message"].split(" ")[2])
+            if prediction_response["message"] == "На складе имеется достаточное количество товаров для данного срока.":
+                await state.update_data(json_num=0)
+            else:
+                await state.update_data(json_num=prediction_response["message"].split(" ")[2])
             await message.answer(prediction_response["message"],
                                  reply_markup=keyboard_builder(["Сформировать закупку", "Вернуться назад↩️"]))
     else:
@@ -418,6 +437,7 @@ async def nlp_forecast_choose_good(message: Message, state: FSMContext):
 @message_router.message(BotStates.admin_choosing_action)
 @auth_check
 async def admin_choose_action(message: Message, state: FSMContext):
+    """Handler for choosing an action if user is logged as admin"""
     user_data = await state.get_data()
     await user_data["admin_greet"].delete_reply_markup()
     admin_greet = await message.answer(
@@ -430,6 +450,7 @@ async def admin_choose_action(message: Message, state: FSMContext):
 @message_router.message(BotStates.loading_remainings)
 @auth_check
 async def admin_load_remainings(message: Message, state: FSMContext):
+    """Handler for loading new stock balances if user is logged as admin"""
     if message.document.mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
         file_id = message.document.file_id
         file = await bot.get_file(file_id)
@@ -451,6 +472,7 @@ async def admin_load_remainings(message: Message, state: FSMContext):
 @message_router.message(BotStates.loading_turnover)
 @auth_check
 async def admin_load_turnover(message: Message, state: FSMContext):
+    """Handler for loading new turnover if user is logged as admin"""
     if message.document.mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
         file_id = message.document.file_id
         file = await bot.get_file(file_id)
@@ -472,6 +494,7 @@ async def admin_load_turnover(message: Message, state: FSMContext):
 @message_router.message(BotStates.editing_fields)
 @auth_check
 async def edit_fields(message: Message, state: FSMContext):
+    """Handler for editing fields in json manually"""
     user_data = await state.get_data()
     current_page = user_data["edit_page"]
     json_data = user_data["json_data"]
@@ -497,8 +520,8 @@ async def edit_fields(message: Message, state: FSMContext):
     await user_data["switch_message"].edit_text('Значение поля "' + JSON_FIELDS[current_page - 1] + '" было изменено.')
     switch_ans = await message.answer(
         'Поле "' + JSON_FIELDS[current_page - 1] + '" теперь имеет значение:\n' + message.text + '\n\nЕсли Вы хотите '
-                                                                                                 'изменить его, отправьте новое значение сообщением.\n\n<b>Для переключения между редактируемыми полями '
-                                                                                                 'используйте кнопки ниже.</b>',
+        'изменить его, отправьте новое значение сообщением.\n\n<b>Для переключения между редактируемыми полями '
+        'используйте кнопки ниже.</b>',
         parse_mode="HTML", reply_markup=keyboard_builder(buttons_texts, size))
     await state.update_data(switch_message=switch_ans)
 
@@ -506,9 +529,11 @@ async def edit_fields(message: Message, state: FSMContext):
 @message_router.message(BotStates.adding_track_item)
 @auth_check
 async def add_track_item(message: Message, state: FSMContext):
+    """Handler for adding new item for tracking its stock balances and """
     user_data = await state.get_data()
     track_list = user_data["track_prod_list"]
     current_page = user_data["track_page"]
+    await user_data["track_purpose"].delete_reply_markup()
     items_add = get_products(message.text)
     if items_add and len(items_add) == 1:
         await state.update_data(track_chosen_product=items_add[0])
@@ -549,5 +574,6 @@ async def add_track_item(message: Message, state: FSMContext):
             reply_markup=keyboard_builder([str(i) for i in range(1, len(items_add) + 1)] + ["Вернуться назад↩️"],
                                           [len(items_add) // 2, len(items_add) - len(items_add) // 2, 1]))
     else:
-        await message.answer("Данный товар не найден, пожалуйста введите название другого товара.",
-                             reply_markup=keyboard_builder(["Вернуться назад↩️"]))
+        track_purpose = await message.answer("Данный товар не найден, пожалуйста введите название другого товара.",
+                                             reply_markup=keyboard_builder(["Вернуться назад↩️"]))
+        await state.update_data(track_purpose=track_purpose)
