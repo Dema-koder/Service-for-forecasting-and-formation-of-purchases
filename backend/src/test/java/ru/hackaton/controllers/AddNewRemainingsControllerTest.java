@@ -50,13 +50,12 @@ class AddNewRemainingsControllerTest {
     }
 
     @Test
-    public void turnoversUpload_fail() throws Exception {
+    public void uploadXlsx_fail() throws Exception {
         File tempFile = null;
         MockMultipartFile file = new MockMultipartFile("file", "testfile.xlsx", "application/vnd.ms-excel", "to".getBytes());
         String expected = "Upload Fail";
         when(fromMultipartToFile.convertMultipartFileToFile(any(MultipartFile.class))).thenReturn(tempFile);
         doNothing().when(parser).processFile(any(File.class));
-        //doThrow(new IOException()).when(tempFile).delete();
 
         mockMvc.perform(MockMvcRequestBuilders.multipart("/upload/remainings")
                         .file(file))
